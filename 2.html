@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔍 Penetration Testing - CyberGuard Pro</title>
+  <style>
+    /* 繼承主頁面樣式 */
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+    
+    :root {
+      --brand-orange: #D17000;
+      --brand-gold: #D7BD82;
+      --neon-cyan: #00FFFF;
+      --neon-green: #39FF14;
+      --neon-pink: #FF10F0;
+      --bg-dark: #000811;
+      --bg-card: #0A0F1C;
+      --text-glow: #FFFFFF;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Orbitron', monospace;
+      background: var(--bg-dark);
+      color: var(--text-glow);
+      min-height: 100vh;
+    }
+    
+    /* Terminal 風格容器 */
+    .terminal-container {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 2rem;
+    }
+    
+    .terminal-window {
+      background: linear-gradient(135deg, rgba(10, 15, 28, 0.95), rgba(15, 25, 45, 0.9));
+      border: 2px solid var(--neon-green);
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 0 50px rgba(57, 255, 20, 0.3);
+      margin-bottom: 2rem;
+    }
+    
+    .terminal-header {
+      background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan));
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--bg-dark);
+      font-weight: 700;
+    }
+    
+    .terminal-body {
+      padding: 2rem;
+      min-height: 400px;
+      font-family: 'Courier New', monospace;
+      position: relative;
+    }
+    
+    /* 測試進度動畫 */
+    .test-progress {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .test-step {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: rgba(0, 255, 255, 0.05);
+      border-left: 3px solid var(--neon-cyan);
+      border-radius: 5px;
+      transition: all 0.5s;
+    }
+    
+    .test-step.active {
+      border-color: var(--neon-green);
+      background: rgba(57, 255, 20, 0.1);
+      animation: step-glow 2s ease-in-out infinite alternate;
+    }
+    
+    @keyframes step-glow {
+      from { box-shadow: 0 0 10px rgba(57, 255, 20, 0.3); }
+      to { box-shadow: 0 0 20px rgba(57, 255, 20, 0.6); }
+    }
+    
+    .step-icon {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: var(--neon-cyan);
+      color: var(--bg-dark);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+    }
+    
+    .step-icon.completed {
+      background: var(--neon-green);
+      animation: completed-pulse 1s ease-in-out;
+    }
+    
+    .step-icon.running {
+      background: var(--brand-orange);
+      animation: running-spin 2s linear infinite;
+    }
+    
+    @keyframes completed-pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+    
+    @keyframes running-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    /* 實時日誌 */
+    .log-container {
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid var(--neon-green);
+      border-radius: 10px;
+      padding: 1.5rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      height: 300px;
+      overflow-y: auto;
+    }
+    
+    .log-entry {
+      margin: 0.5rem 0;
+      opacity: 0;
+      animation: log-appear 0.5s ease-in-out forwards;
+    }
+    
+    @keyframes log-appear {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .log-success { color: var(--neon-green); }
+    .log-warning { color: var(--brand-gold); }
+    .log-error { color: #FF4444; }
+    .log-info { color: var(--neon-cyan); }
+  </style>
+</head>
+<body>
+  <!-- Header 複用 -->
+  <header style="background: linear-gradient(135deg, rgba(209, 112, 0, 0.2), rgba(215, 189, 130, 0.1)); border-bottom: 2px solid var(--brand-orange); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 1rem; font-size: 1.5rem; font-weight: 900;">
+      <div style="width: 40px; height: 40px; background: var(--brand-orange); border-radius: 50%; display: flex; align-items: center; justify-content: center;">🛡️</div>
+      <span>CyberGuard Pro</span>
+    </div>
+    <nav>
+      <a href="#dashboard" style="color: var(--text-glow); margin-right: 2rem; text-decoration: none;">Dashboard</a>
+      <a href="#pentest" style="color: var(--brand-orange); margin-right: 2rem; text-decoration: none;">滲透測試</a>
+      <a href="#reports" style="color: var(--text-glow); text-decoration: none;">報告</a>
+    </nav>
+  </header>
+
+  <div class="terminal-container">
+    <!-- 測試配置面板 -->
+    <div class="terminal-window">
+      <div class="terminal-header">
+        <span>🎯 測試目標配置</span>
+        <span>Status: READY</span>
+      </div>
+      <div class="terminal-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+          <div>
+            <h3 style="color: var(--brand-orange); margin-bottom: 1rem;">目標系統</h3>
+            <select style="width: 100%; padding: 1rem; background: var(--bg-card); border: 2px solid var(--neon-cyan); border-radius: 10px; color: var(--text-glow); font-family: 'Orbitron';">
+              <option>🔐 eKYC Authentication System</option>
+              <option>🌐 Web Application Portal</option>
+              <option>🗄️ Database Server</option>
+              <option>🔌 API Gateway</option>
+            </select>
+          </div>
+          <div>
+            <h3 style="color: var(--brand-orange); margin-bottom: 1rem;">AI 模組選擇</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(57, 255, 20, 0.1); border: 1px solid var(--neon-green); border-radius: 20px; cursor: pointer;">
+                <input type="checkbox" checked> 🎭 Deepfake Detection
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(0, 255, 255, 0.1); border: 1px solid var(--neon-cyan); border-radius: 20px; cursor: pointer;">
+                <input type="checkbox" checked> 👁️ Liveness Detection
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(255, 16, 240, 0.1); border: 1px solid var(--neon-pink); border-radius: 20px; cursor: pointer;">
+                <input type="checkbox"> 📄 Document Forgery
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 測試執行狀態 -->
+    <div class="terminal-window">
+      <div class="terminal-header">
+        <span>⚡ 測試執行狀態</span>
+        <span id="currentTime">2025-09-16 12:54:32</span>
+      </div>
+      <div class="terminal-body">
+        <div class="test-progress">
+          <div class="test-step">
+            <div class="step-icon completed">✓</div>
+            <div>
+              <div style="font-weight: 700; color: var(--neon-green);">系統連接測試</div>
+              <div style="font-size: 0.8rem; color: var(--text-glow);">目標系統連接成功 - 響應時間: 23ms</div>
+            </div>
+          </div>
+          <div class="test-step">
+            <div class="step-icon completed">✓</div>
+            <div>
+              <div style="font-weight: 700; color: var(--neon-green);">端口掃描</div>
+              <div style="font-size: 0.8rem; color: var(--text-glow);">發現 12 個開放端口 - 3 個高風險端口</div>
+            </div>
+          </div>
+          <div class="test-step active">
+            <div class="step-icon running">⟳</div>
+            <div>
+              <div style="font-weight: 700; color: var(--brand-orange);">SQL 注入測試</div>
+              <div style="font-size: 0.8rem; color: var(--text-glow);">正在測試 127 個注入點 - 進度: 67%</div>
+              <div style="margin-top: 0.5rem; width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+                <div style="width: 67%; height: 100%; background: linear-gradient(90deg, var(--brand-orange), var(--brand-gold)); animation: progress-flow 2s ease-in-out infinite;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="test-step">
+            <div class="step-icon">4</div>
+            <div>
+              <div style="font-weight: 700; color: var(--text-glow);">AI 模型驗證</div>
+              <div style="font-size: 0.8rem; color: var(--text-glow);">Deepfake & Liveness 檢測準備中...</div>
+            </div>
+          </div>
+          <div class="test-step">
+            <div class="step-icon">5</div>
+            <div>
+              <div style="font-weight: 700; color: var(--text-glow);">報告生成</div>
+              <div style="font-size: 0.8rem; color: var(--text-glow);">等待測試完成</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 實時日誌 -->
+    <div class="terminal-window">
+      <div class="terminal-header">
+        <span>📋 實時測試日誌</span>
+        <button style="background: var(--brand-orange); border: none; padding: 0.5rem 1rem; border-radius: 5px; color: white; cursor: pointer;">清空日誌</button>
+      </div>
+      <div class="terminal-body">
+        <div class="log-container" id="logContainer">
+          <div class="log-entry log-info">[12:54:01] INFO - 開始滲透測試任務</div>
+          <div class="log-entry log-success">[12:54:03] SUCCESS - 目標系統連接建立</div>
+          <div class="log-entry log-info">[12:54:05] INFO - 開始端口掃描 (1-65535)</div>
+          <div class="log-entry log-warning">[12:54:12] WARNING - 發現開放端口 3389 (RDP)</div>
+          <div class="log-entry log-warning">[12:54:15] WARNING - 發現開放端口 1433 (SQL Server)</div>
+          <div class="log-entry log-success">[12:54:18] SUCCESS - 端口掃描完成</div>
+          <div class="log-entry log-info">[12:54:20] INFO - 開始 SQL 注入測試</div>
+          <div class="log-entry log-error">[12:54:32] ERROR - 發現 SQL 注入漏洞 /api/login</div>
+          <div class="log-entry log-error">[12:54:35] ERROR - 發現 SQL 注入漏洞 /api/search</div>
+          <div class="log-entry log-info">[12:54:38] INFO - AI 模組初始化中...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 模擬實時日誌
+    function addLogEntry(level, message) {
+      const logContainer = document.getElementById('logContainer');
+      const entry = document.createElement('div');
+      const timestamp = new Date().toLocaleTimeString();
+      
+      entry.className = `log-entry log-${level}`;
+      entry.textContent = `[${timestamp}] ${level.toUpperCase()} - ${message}`;
+      
+      logContainer.appendChild(entry);
+      logContainer.scrollTop = logContainer.scrollHeight;
+      
+      // 限制日誌條數
+      if (logContainer.children.length > 50) {
+        logContainer.removeChild(logContainer.firstChild);
+      }
+    }
+
+    // 模擬測試進度
+    function simulateTestProgress() {
+      const messages = [
+        { level: 'info', msg: 'XSS 攻擊向量測試中...' },
+        { level: 'warning', msg: '檢測到潛在 XSS 漏洞' },
+        { level: 'success', msg: 'CSRF 防護機制驗證通過' },
+        { level: 'error', msg: '發現未授權存取漏洞' },
+        { level: 'info', msg: 'AI 模型分析 Deepfake 樣本...' }
+      ];
+
+      setInterval(() => {
+        const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+        addLogEntry(randomMsg.level, randomMsg.msg);
+      }, 3000);
+    }
+
+    // 更新時間
+    function updateTime() {
+      document.getElementById('currentTime').textContent = new Date().toLocaleString();
+    }
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      simulateTestProgress();
+      setInterval(updateTime, 1000);
+    });
+  </script>
+</body>
+</html>
