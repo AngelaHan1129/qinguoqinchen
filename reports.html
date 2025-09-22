@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Security Reports - QinGuoQinChen</title>
   <link rel="shortcut icon" href="favicon.ico" />
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
-    
+
     :root {
       --brand-orange: #D17000;
       --brand-gold: #D7BD82;
@@ -18,22 +20,26 @@
       --bg-card: #0A0F1C;
       --text-glow: #FFFFFF;
     }
-    
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
       font-family: 'Orbitron', monospace;
       background: var(--bg-dark);
       color: var(--text-glow);
       min-height: 100vh;
     }
-    
+
     .reports-container {
       max-width: 1400px;
       margin: 2rem auto;
       padding: 0 2rem;
     }
-    
+
     /* 報告統計卡片 */
     .stats-grid {
       display: grid;
@@ -41,7 +47,7 @@
       gap: 2rem;
       margin-bottom: 3rem;
     }
-    
+
     .stat-card {
       background: linear-gradient(135deg, rgba(10, 15, 28, 0.9), rgba(15, 25, 45, 0.8));
       border: 2px solid;
@@ -51,23 +57,45 @@
       position: relative;
       overflow: hidden;
     }
-    
-    .stat-card.critical { border-color: #FF4444; }
-    .stat-card.high { border-color: var(--brand-orange); }
-    .stat-card.medium { border-color: var(--brand-gold); }
-    .stat-card.low { border-color: var(--neon-green); }
-    
+
+    .stat-card.critical {
+      border-color: #FF4444;
+    }
+
+    .stat-card.high {
+      border-color: var(--brand-orange);
+    }
+
+    .stat-card.medium {
+      border-color: var(--brand-gold);
+    }
+
+    .stat-card.low {
+      border-color: var(--neon-green);
+    }
+
     .stat-number {
       font-size: 3rem;
       font-weight: 900;
       margin-bottom: 0.5rem;
     }
-    
-    .stat-card.critical .stat-number { color: #FF4444; }
-    .stat-card.high .stat-number { color: var(--brand-orange); }
-    .stat-card.medium .stat-number { color: var(--brand-gold); }
-    .stat-card.low .stat-number { color: var(--neon-green); }
-    
+
+    .stat-card.critical .stat-number {
+      color: #FF4444;
+    }
+
+    .stat-card.high .stat-number {
+      color: var(--brand-orange);
+    }
+
+    .stat-card.medium .stat-number {
+      color: var(--brand-gold);
+    }
+
+    .stat-card.low .stat-number {
+      color: var(--neon-green);
+    }
+
     /* 報告表格 */
     .reports-table {
       background: var(--bg-card);
@@ -76,7 +104,7 @@
       overflow: hidden;
       margin-bottom: 3rem;
     }
-    
+
     .table-header {
       background: linear-gradient(90deg, var(--neon-cyan), var(--neon-green));
       color: var(--bg-dark);
@@ -86,7 +114,7 @@
       justify-content: space-between;
       align-items: center;
     }
-    
+
     .reports-grid {
       display: grid;
       grid-template-columns: 1fr 120px 100px 120px 150px;
@@ -96,16 +124,16 @@
       align-items: center;
       transition: all 0.3s;
     }
-    
+
     .reports-grid:hover {
       background: rgba(0, 255, 255, 0.05);
     }
-    
+
     .report-title {
       font-weight: 700;
       color: var(--brand-orange);
     }
-    
+
     .report-status {
       padding: 0.3rem 0.8rem;
       border-radius: 15px;
@@ -113,23 +141,30 @@
       font-weight: 700;
       text-align: center;
     }
-    
+
     .status-completed {
       background: var(--neon-green);
       color: var(--bg-dark);
     }
-    
+
     .status-processing {
       background: var(--brand-orange);
       color: white;
       animation: processing-blink 2s ease-in-out infinite;
     }
-    
+
     @keyframes processing-blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.6;
+      }
     }
-    
+
     .download-btn {
       background: var(--brand-orange);
       border: none;
@@ -140,12 +175,12 @@
       font-weight: 700;
       transition: all 0.3s;
     }
-    
+
     .download-btn:hover {
       background: #B85F00;
       transform: translateY(-2px);
     }
-    
+
     /* 圖表容器 */
     .chart-container {
       background: var(--bg-card);
@@ -154,7 +189,7 @@
       padding: 2rem;
       margin-bottom: 2rem;
     }
-    
+
     .chart-placeholder {
       height: 300px;
       background: linear-gradient(135deg, rgba(209, 112, 0, 0.1), rgba(215, 189, 130, 0.1));
@@ -167,11 +202,15 @@
     }
   </style>
 </head>
+
 <body>
   <!-- Header -->
-  <header style="background: linear-gradient(135deg, rgba(209, 112, 0, 0.2), rgba(215, 189, 130, 0.1)); border-bottom: 2px solid var(--brand-orange); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;">
+  <header
+    style="background: linear-gradient(135deg, rgba(209, 112, 0, 0.2), rgba(215, 189, 130, 0.1)); border-bottom: 2px solid var(--brand-orange); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;">
     <div style="display: flex; align-items: center; gap: 1rem; font-size: 1.5rem; font-weight: 900;">
-      <div style="width: 40px; height: 40px; background: var(--brand-orange); border-radius: 50%; display: flex; align-items: center; justify-content: center;"><img src="favicon-32x32.png"></div>
+      <div
+        style="width: 40px; height: 40px; background: var(--brand-orange); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+        <img src="favicon-32x32.png"></div>
       <span>QinGuoQinChen - 侵國侵城</span>
     </div>
     <nav>
@@ -206,18 +245,17 @@
     <!-- 風險趨勢圖表 -->
     <div class="chart-container">
       <h3 style="color: var(--brand-gold); margin-bottom: 1rem;"> 安全風險趨勢分析</h3>
-      <div class="chart-placeholder">
-         圖表載入中... (可整合 Chart.js 或 ECharts)
-      </div>
+      <div id="riskTrendChart" style="height: 300px;"></div>
     </div>
 
     <!-- 報告列表 -->
     <div class="reports-table">
       <div class="table-header">
         <span> 安全評估報告</span>
-        <button style="background: var(--brand-orange); border: none; padding: 0.5rem 1rem; border-radius: 5px; color: white; cursor: pointer;">生成新報告</button>
+        <button
+          style="background: var(--brand-orange); border: none; padding: 0.5rem 1rem; border-radius: 5px; color: white; cursor: pointer;">生成新報告</button>
       </div>
-      
+
       <div class="reports-grid" style="font-weight: 700; background: rgba(255, 255, 255, 0.05);">
         <div>報告名稱</div>
         <div>狀態</div>
@@ -225,7 +263,7 @@
         <div>生成日期</div>
         <div>操作</div>
       </div>
-      
+
       <div class="reports-grid">
         <div class="report-title">eKYC 系統滲透測試報告</div>
         <div><span class="report-status status-completed">完成</span></div>
@@ -235,7 +273,7 @@
           <button class="download-btn">📥 下載</button>
         </div>
       </div>
-      
+
       <div class="reports-grid">
         <div class="report-title">Web 應用程式安全掃描</div>
         <div><span class="report-status status-processing">處理中</span></div>
@@ -245,7 +283,7 @@
           <button class="download-btn" disabled style="opacity: 0.5;">⏳ 等待</button>
         </div>
       </div>
-      
+
       <div class="reports-grid">
         <div class="report-title">AI 模型安全評估報告</div>
         <div><span class="report-status status-completed">完成</span></div>
@@ -255,7 +293,7 @@
           <button class="download-btn">📥 下載</button>
         </div>
       </div>
-      
+
       <div class="reports-grid">
         <div class="report-title">資料庫安全檢測報告</div>
         <div><span class="report-status status-completed">完成</span></div>
@@ -268,7 +306,8 @@
     </div>
 
     <!-- AI 智能摘要 -->
-    <div style="background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(57, 255, 20, 0.1)); border: 2px solid var(--neon-cyan); border-radius: 15px; padding: 2rem;">
+    <div
+      style="background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(57, 255, 20, 0.1)); border: 2px solid var(--neon-cyan); border-radius: 15px; padding: 2rem;">
       <h3 style="color: var(--neon-cyan); margin-bottom: 1rem;"> AI 智能報告摘要</h3>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
         <div>
@@ -303,12 +342,12 @@
     // 模擬報告生成進度
     function simulateReportGeneration() {
       const processingRows = document.querySelectorAll('.status-processing');
-      
+
       processingRows.forEach(status => {
         setTimeout(() => {
           status.textContent = '完成';
           status.className = 'report-status status-completed';
-          
+
           const downloadBtn = status.closest('.reports-grid').querySelector('.download-btn');
           downloadBtn.disabled = false;
           downloadBtn.style.opacity = '1';
@@ -318,16 +357,16 @@
     }
 
     // 初始化
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       simulateReportGeneration();
-      
+
       // 統計數字動畫
       const statNumbers = document.querySelectorAll('.stat-number');
       statNumbers.forEach(stat => {
         const target = parseInt(stat.textContent);
         let current = 0;
         const increment = target / 50;
-        
+
         const timer = setInterval(() => {
           current += increment;
           if (current >= target) {
@@ -337,7 +376,80 @@
           stat.textContent = Math.floor(current);
         }, 50);
       });
+       var chartDom = document.getElementById('riskTrendChart');
+    var myChart = echarts.init(chartDom);
+
+    var option = {
+      title: {
+        text: '風險趨勢',
+        left: 'center',
+        textStyle: { color: 'var(--brand-gold)' }
+      },
+      tooltip: {
+        trigger: 'axis'
+      },
+      xAxis: {
+        type: 'category',
+        data: ['2025-09-12', '2025-09-13', '2025-09-14', '2025-09-15', '2025-09-16', '2025-09-17'], // 日期
+        axisLine: { lineStyle: { color: '#D7BD82' } },
+        axisLabel: { color: '#D7BD82' }
+      },
+      yAxis: {
+        type: 'value',
+        minInterval: 1,
+        axisLine: { lineStyle: { color: '#D7BD82' } },
+        axisLabel: { color: '#D7BD82' }
+      },
+      series: [
+        {
+          name: 'Critical',
+          type: 'line',
+          data: [1, 2, 2, 3, 3, 3],
+          itemStyle: { color: '#FF4444' },
+          smooth: true
+        },
+        {
+          name: 'High',
+          type: 'line',
+          data: [8, 10, 11, 12, 12, 12],
+          itemStyle: { color: 'var(--brand-orange)' },
+          smooth: true
+        },
+        {
+          name: 'Medium',
+          type: 'line',
+          data: [20, 22, 25, 27, 28, 28],
+          itemStyle: { color: 'var(--brand-gold)' },
+          smooth: true
+        },
+        {
+          name: 'Low',
+          type: 'line',
+          data: [40, 42, 43, 44, 45, 45],
+          itemStyle: { color: 'var(--neon-green)' },
+          smooth: true
+        }
+      ],
+      legend: {
+        top: 30,
+        textStyle: { color: '#D7BD82' }
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      }
+    };
+
+    myChart.setOption(option);
+
+    // 視窗縮放時自動調整圖表大小
+    window.addEventListener('resize', function() {
+      myChart.resize();
+    });
     });
   </script>
 </body>
+
 </html>
