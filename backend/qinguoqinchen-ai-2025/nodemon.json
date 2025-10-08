@@ -1,6 +1,18 @@
 {
-  "watch": ["src"],
-  "ext": "js",
-  "ignore": ["src/**/*.spec.js"],
-  "exec": "node index --exec babel-node"
+  "watch": [
+    "src",
+    "*.js"
+  ],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules/**/*",
+    "dist/**/*",
+    "test/**/*",
+    "coverage/**/*"
+  ],
+  "exec": "node src/main.js",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000
 }

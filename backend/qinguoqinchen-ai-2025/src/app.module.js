@@ -1,10 +1,21 @@
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+const { Module } = require('@nestjs/common');
+const { ConfigModule } = require('@nestjs/config');
+const { AppController } = require('./app.controller');
+const { AppService } = require('./app.service');
 
-@Module({
-  imports: [],
+const AppModuleClass = class {
+  constructor() {}
+};
+
+const AppModule = Module({
+  imports: [
+    ConfigModule.forRoot({ 
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
+  ],
   controllers: [AppController],
   providers: [AppService],
-})
-export class AppModule {}
+})(AppModuleClass);
+
+module.exports = { AppModule };

@@ -1,46 +1,96 @@
-import { Controller, Post, Body, Get } from '@nestjs/common';
-import { AiAttackService } from './ai-attack/ai-attack.service.js';
-import { ReportService } from './report/report.service.js';
+const { Controller, Get, Post, Body } = require('@nestjs/common');
+const { AppService } = require('./app.service');
 
-@Controller('qinguoqinchen')
-export class AppController {
-  constructor(aiAttackService, reportService) {
-    this.aiAttackService = aiAttackService;
-    this.reportService = reportService;
+const AppControllerClass = class {
+  constructor(appService) {
+    this.appService = appService;
   }
 
-  @Post('penetration-test')
-  async executePenetrationTest(@Body() testConfig) {
-    const { vectors, combos, intensity = 'medium' } = testConfig;
-    
-    let results;
-    if (combos && combos.length > 0) {
-      results = await this.aiAttackService.executeComboAttack(combos);
-    } else {
-      results = await this.aiAttackService.executeMultiModalAttack(vectors || ['A1', 'A2', 'A3']);
-    }
-
-    // 生成詳細報告
-    const report = await this.reportService.generatePenetrationReport(results);
-    
+  getRoot() {
     return {
-      success: true,
-      penetrationResults: results,
-      securityReport: report,
-      nextSteps: report.recommendations.recommendations.slice(0, 3)
+      message: '歡迎使用侵國侵城 AI 滲透測試系統',
+      version: '1.0.0',
+      timestamp: new Date().toISOString(),
+      status: 'operational'
     };
   }
 
-  @Get('attack-vectors')
-  getAvailableAttackVectors() {
+  getHealth() {
     return {
-      vectors: this.aiAttackService.attackVectors,
+      status: 'healthy',
+      system: '侵國侵城 AI 系統',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  async executeAttack(attackConfig) {
+    const { vectorIds = ['A1', 'A2'], intensity = 'medium' } = attackConfig;
+    
+    // 模擬攻擊執行
+    const results = vectorIds.map(vectorId => ({
+      vectorId,
+      model: this.getModelByVector(vectorId),
+      success: Math.random() > 0.5,
+      confidence: Math.random(),
+      timestamp: new Date()
+    }));
+
+    return {
+      success: true,
+      attackId: `QQC_ATK_${Date.now()}`,
+      results,
+      summary: {
+        totalAttacks: results.length,
+        successfulAttacks: results.filter(r => r.success).length,
+        successRate: `${(results.filter(r => r.success).length / results.length * 100).toFixed(2)}%`
+      }
+    };
+  }
+
+  getAttackVectors() {
+    return {
+      vectors: [
+        { id: 'A1', model: 'StyleGAN3', scenario: '偽造真人自拍' },
+        { id: 'A2', model: 'StableDiffusion', scenario: '翻拍攻擊' },
+        { id: 'A3', model: 'SimSwap', scenario: '即時換臉' },
+        { id: 'A4', model: 'Diffusion+GAN', scenario: '偽造護照' },
+        { id: 'A5', model: 'DALL·E', scenario: '直接生成假證件' }
+      ],
       recommendedCombos: [
-        ['A2', 'A3'], // Deepfake + 翻拍
-        ['A1', 'A4'], // 假自拍 + 假護照  
-        ['A3', 'A5'], // 即時換臉 + 生成證件
-        ['A2', 'A3', 'A5'] // 三重攻擊
+        ['A2', 'A3'],
+        ['A1', 'A4'],
+        ['A3', 'A5']
       ]
     };
   }
-}
+
+  getModelByVector(vectorId) {
+    const models = {
+      'A1': 'StyleGAN3',
+      'A2': 'StableDiffusion', 
+      'A3': 'SimSwap',
+      'A4': 'Diffusion+GAN',
+      'A5': 'DALL·E'
+    };
+    return models[vectorId] || 'Unknown';
+  }
+};
+
+const AppController = Controller()(AppControllerClass);
+
+// 手動設定路由
+const routeMethods = {
+  '/': { method: Get(), handler: 'getRoot' },
+  '/health': { method: Get(), handler: 'getHealth' },
+  '/ai-attack/execute': { method: Post(), handler: 'executeAttack' },
+  '/ai-attack/vectors': { method: Get(), handler: 'getAttackVectors' }
+};
+
+// 應用路由裝飾器
+Object.entries(routeMethods).forEach(([path, config]) => {
+  config.method(path)(AppController.prototype, config.handler);
+});
+
+module.exports = { AppController };
