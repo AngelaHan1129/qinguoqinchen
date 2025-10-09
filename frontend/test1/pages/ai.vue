@@ -231,6 +231,46 @@
     }
 </style>
 <script setup>
+import { onMounted } from 'vue'
+
+function createNeuralNetwork() {
+  const container = document.getElementById('neuralNetwork')
+  const nodeCount = 50
+
+  for (let i = 0; i < nodeCount; i++) {
+    const node = document.createElement('div')
+    node.className = 'neural-node'
+    node.style.left = Math.random() * 100 + '%'
+    node.style.top = Math.random() * 100 + '%'
+    node.style.animationDelay = Math.random() * 3 + 's'
+    container.appendChild(node)
+  }
+}
+
+onMounted(() => {
+  createNeuralNetwork()
+
+  // 模擬準確率動畫
+  const circles = document.querySelectorAll('.accuracy-circle')
+  circles.forEach(circle => {
+    const accuracy = parseFloat(circle.style.getPropertyValue('--accuracy'))
+    let current = 0
+    const increment = accuracy / 100
+
+    const animation = setInterval(() => {
+      current += increment
+      if (current >= accuracy) {
+        current = accuracy
+        clearInterval(animation)
+      }
+      circle.style.setProperty('--accuracy', current)
+      const text = circle.querySelector('.accuracy-text')
+      if (text) {
+        text.textContent = current.toFixed(1) + '%'
+      }
+    }, 20)
+  })
+})
     /* // 創建神經網路背景
     function createNeuralNetwork() {
       const container = document.getElementById('neuralNetwork');
