@@ -1,5 +1,5 @@
 
-# 🛡️ 侵國侵城 AI 滲透測試系統
+# 侵國侵城 AI 滲透測試系統
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/qinguoqinchen/ai-security)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -9,7 +9,7 @@
 
 > **專為 eKYC (電子身份驗證) 安全測試設計的全端 AI 紅隊滲透測試系統**
 
-## 📋 目錄
+## 目錄
 
 - [系統概述](#-系統概述)
 - [系統架構](#-系統架構)
@@ -23,11 +23,11 @@
 - [測試指南](#-測試指南)
 - [故障排除](#-故障排除)
 
-## 🎯 系統概述
+## 系統概述
 
 侵國侵城 AI 滲透測試系統是一個先進的全端 AI 紅隊工具，專門設計用於測試和評估 eKYC 系統的安全性。系統整合了多種最新的生成式 AI 技術，提供直觀的 Web 界面和強大的後端 API。
 
-### ✨ 系統特色
+### 系統特色
 
 - **🎨 現代化 Web 界面**: Vue.js 3 + TypeScript + Element Plus
 - **🤖 多模態 AI 攻擊**: StyleGAN3、Stable Diffusion、SimSwap、DALL·E
