@@ -1,6 +1,4 @@
-我來為你寫一個包含前後端的完整 README.md：
 
-```markdown
 # 🛡️ 侵國侵城 AI 滲透測試系統
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/qinguoqinchen/ai-security)
