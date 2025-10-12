@@ -14,13 +14,15 @@
       <span>QinGuoQinChen - 侵國侵城</span>
     </div>
     <nav>
-      <ul class="nav-menu">
+      `<ul class="nav-menu">
         <li><NuxtLink to="/">Dashboard</NuxtLink></li>
-        <li><NuxtLink to="/pentest">滲透測試</NuxtLink></li>
-        <li><NuxtLink to="/ai">AI 分析</NuxtLink></li>
-        <li><NuxtLink to="/reports">報告</NuxtLink></li>
+
+        <!-- 僅在啟動後才顯示 -->
+        <li v-if="pentestStore.started"><NuxtLink to="/pentest">滲透測試</NuxtLink></li>
+        <li v-if="pentestStore.started"><NuxtLink to="/ai">AI 分析</NuxtLink></li>
+        <li v-if="pentestStore.started"><NuxtLink to="/reports">報告</NuxtLink></li>
       </ul>
-    </nav>
+    </nav>`
   </header>
 
 </template>
@@ -134,6 +136,7 @@
       display: flex;
       gap: 2rem;
       list-style: none;
+      justify-content: flex-end;
     }
     
     .nav-menu a {
@@ -220,44 +223,26 @@ useHead({
         container.appendChild(particle);
       }
     }
-
     // 數據更新動畫
     function updateStats() {
-      const stats = document.querySelectorAll('.stat-number');
-      stats.forEach(stat => {
-        const target = parseInt(stat.textContent.replace(/[^\d]/g, ''));
-        let current = 0;
-        const increment = target / 50;
-        
-        const timer = setInterval(() => {
-          current += increment;
-          if (current >= target) {
-            current = target;
-            clearInterval(timer);
-          }
-          stat.textContent = stat.textContent.includes('%') ? 
-            current.toFixed(1) + '%' : Math.floor(current);
-        }, 50);
-      });
-    }
+  const stats = document.querySelectorAll('.stat-number');
+  stats.forEach(stat => {
+    const target = parseFloat(stat.textContent.replace(/[^\d.]/g, ''))
+    let current = 0;
+    const increment = target / 50;
 
-    // 初始化
-    /* document.addEventListener('DOMContentLoaded', function() {
-      createMatrix();
-      createParticles();
-      setTimeout(updateStats, 1000);
-      
-      // 卡片懸浮效果
-      document.querySelectorAll('.cyber-card').forEach(card => {
-        card.addEventListener('mouseenter', function() {
-          this.style.transform = 'translateY(-10px) rotateX(5deg)';
-        });
-        
-        card.addEventListener('mouseleave', function() {
-          this.style.transform = 'translateY(0) rotateX(0)';
-        });
-      });
-    }); */
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        current = target;
+        clearInterval(timer);
+      }
+      stat.textContent = stat.textContent.includes('%') ?
+        current.toFixed(1) + '%' : Math.floor(current);
+    }, 50);
+  });
+}
+    
     onMounted(() => {
   createMatrix()
   createParticles()
@@ -273,4 +258,8 @@ useHead({
     })
   })
 })
+import { usePentestStore } from '@/stores/pentest'
+
+const pentestStore = usePentestStore()
+
 </script>

@@ -1,0 +1,107 @@
+/* AI 神經網路視覺化 */
+    .neural-network {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: -1;
+      opacity: 0.1;
+    }
+    
+    .neural-node {
+      position: absolute;
+      width: 8px; height: 8px;
+      background: var(--neon-cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--neon-cyan);
+      animation: neural-pulse 3s ease-in-out infinite;
+    }
+    
+    @keyframes neural-pulse {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.5); }
+    }
+    
+    .ai-container {
+      max-width: 1400px;
+      margin: 2rem auto;
+      padding: 0 2rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+    
+    .ai-panel {
+      background: linear-gradient(135deg, rgba(10, 15, 28, 0.9), rgba(15, 25, 45, 0.8));
+      border: 2px solid var(--neon-cyan);
+      border-radius: 15px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .ai-panel::before {
+      content: '';
+      position: absolute;
+      top: -2px; left: -2px; right: -2px; bottom: -2px;
+      background: linear-gradient(45deg, var(--neon-cyan), var(--neon-green), var(--neon-pink), var(--neon-cyan));
+      border-radius: 15px;
+      z-index: -1;
+      animation: ai-border-glow 4s linear infinite;
+    }
+    
+    @keyframes ai-border-glow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    
+    /* AI 模型卡片 */
+    .ai-model-card {
+      background: rgba(0, 255, 255, 0.05);
+      border: 1px solid var(--neon-cyan);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+      position: relative;
+    }
+    
+    .model-status {
+      position: absolute;
+      top: 1rem; right: 1rem;
+      padding: 0.3rem 0.8rem;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    
+    .status-active {
+      background: var(--neon-green);
+      color: var(--bg-dark);
+      box-shadow: 0 0 10px var(--neon-green);
+    }
+    
+    .status-training {
+      background: var(--brand-orange);
+      color: white;
+      animation: training-blink 2s ease-in-out infinite;
+    }
+    
+    @keyframes training-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    
+    /* 準確率圓形圖表 */
+    .accuracy-circle {
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      background: conic-gradient(var(--neon-green) 0deg, var(--neon-green) calc(var(--accuracy) * 3.6deg), rgba(255,255,255,0.1) calc(var(--accuracy) * 3.6deg));
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+      margin: 1rem auto;
+    }
+    
+    .accuracy-text {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--neon-green);
+    }
