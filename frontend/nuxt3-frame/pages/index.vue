@@ -12,18 +12,28 @@
         </div>
         <div style="margin: 1.5rem 0;">
           <p style="margin-bottom: 1rem; color: var(--brand-gold);">選擇滲透測試目標：</p>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem;">
+          <div class="input-group">
+            <!-- URL 輸入框 -->
             <input
               v-model="urlInput"
               type="text"
               placeholder="請輸入目標 URL"
-              style="width: 100%; padding: 0.5rem; margin-bottom: 1rem;"
+              class="cyber-input"
             />
-            <input
-              type="file"
-              @change="handleFileInput"
-              style="width: 100%; padding: 0.5rem;"
-            />
+
+            <!-- 檔案上傳區 -->
+            <div class="file-upload-wrapper">
+              <input
+                type="file"
+                id="fileUpload"
+                class="file-input-hidden"
+                @change="handleFileInput"
+              />
+              <label for="fileUpload" class="cyber-btn file-upload-btn">📁 選擇檔案</label>
+              <div class="file-name" v-if="selectedFileName">
+                📄 {{ selectedFileName }}
+              </div>
+            </div>
           </div>
         </div>
         <div class="data-stream"><div class="data-flow"></div></div>
@@ -133,68 +143,17 @@
 </template>
 <style src="@/assets/css/index.css"></style>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { usePentestUI } from '@/composables/index.ts'
 import { usePentestStore } from '@/stores/pentest'
 
 const pentestStore = usePentestStore()
-
-const urlInput = ref('')
-const fileInput = ref(null)
-
-
-
-const isInputValid = computed(() => {
-  return urlInput.value.trim() !== '' || fileInput.value !== null
-})
-
-function handleFileInput(event) {
-  fileInput.value = event.target.files[0]
-}
-
-function startPentest() {
-  if (!isInputValid.value) {
-    alert('請輸入 URL 或選擇檔案才能開始')
-    return
-  }
-
-  alert('啟動滲透測試中...')
-  
-  pentestStore.startPentest()
-}
-
-function updateStats() {
-  const stats = document.querySelectorAll('.stat-number');
-  stats.forEach(stat => {
-    const target = parseFloat(stat.textContent.replace(/[^\d.]/g, ''))
-    let current = 0;
-    const increment = target / 50;
-
-    const timer = setInterval(() => {
-      current += increment;
-      if (current >= target) {
-        current = target;
-        clearInterval(timer);
-      }
-      stat.textContent = stat.textContent.includes('%') ?
-        current.toFixed(1) + '%' : Math.floor(current);
-    }, 50);
-  });
-}
-
-onMounted(() => {
-  urlInput.value = ''
-  fileInput.value = null
-  
-  setTimeout(updateStats, 1000)
-
-  document.querySelectorAll('.cyber-card').forEach(card => {
-    card.addEventListener('mouseenter', function () {
-      this.style.transform = 'translateY(-10px) rotateX(5deg)'
-    })
-
-    card.addEventListener('mouseleave', function () {
-      this.style.transform = 'translateY(0) rotateX(0)'
-    })
-  })
-})
+const {
+  urlInput,
+  fileInput,
+  selectedFileName,
+  isInputValid,
+  handleFileInput,
+  startPentest
+} = usePentestUI()
 </script>
+

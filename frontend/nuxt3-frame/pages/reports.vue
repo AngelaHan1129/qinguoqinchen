@@ -117,158 +117,17 @@
   </div>
 </template>
 <style src="@/assets/css/reports.css"></style>
-<script setup>
+<script setup lang="ts">
 import { onMounted, onBeforeUnmount } from 'vue'
-import { nextTick } from 'vue'
-import * as echarts from 'echarts'
-function getCssVar(name) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-}
+import { useReports } from '@/composables/reports'
 
-let myChart = null
-
-function simulateReportGeneration() {
-  const processingRows = document.querySelectorAll('.status-processing')
-
-  processingRows.forEach(status => {
-    setTimeout(() => {
-      status.textContent = '完成'
-      status.className = 'report-status status-completed'
-
-      const downloadBtn = status.closest('.reports-grid')?.querySelector('.download-btn')
-      if (downloadBtn) {
-        downloadBtn.disabled = false
-        downloadBtn.style.opacity = '1'
-        downloadBtn.textContent = '📥 下載'
-      }
-    }, Math.random() * 10000 + 5000)
-  })
-}
-
-const statValues = [3, 12, 28, 45] // 正確數值（依照你的 template 順序）
-
-
-function animateStatNumbers() {
-  if (isAnimating) return
-  isAnimating = true
-
-  const statNumbers = document.querySelectorAll('.stat-number')
-  console.log('animateStatNumbers, found:', statNumbers.length)
-  const duration = 2500
-
-  statNumbers.forEach((stat, idx) => {
-  const target = parseInt(stat.dataset.value || '0', 10)
-  let current = 0
-  let startTime = null
-
-  function step(timestamp) {
-    if (!startTime) startTime = timestamp
-    const progress = Math.min((timestamp - startTime) / duration, 1)
-    current = Math.floor(progress * target)
-    stat.textContent = current
-
-    if (progress < 1) {
-      requestAnimationFrame(step)
-    } else {
-      stat.textContent = target
-      if (idx === statNumbers.length - 1) {
-        isAnimating = false
-      }
-    }
-  }
-
-  requestAnimationFrame(step)
-})}
-
-
-
-
-
-
-function initChart() {
-  const chartDom = document.getElementById('riskTrendChart')
-  if (!chartDom) return
-
-  myChart = echarts.init(chartDom)
-
-  const option = {
-    
-    tooltip: {
-      trigger: 'axis'
-    },
-    legend: {
-      top: 30,
-      textStyle: { color: getCssVar('--brand-gold') }
-    },
-    xAxis: {
-      type: 'category',
-      data: ['2025-09-12', '2025-09-13', '2025-09-14', '2025-09-15', '2025-09-16', '2025-09-17'],
-      axisLine: { lineStyle: { color: getCssVar('--brand-gold') } },
-      axisLabel: { color: getCssVar('--brand-gold') }
-    },
-    yAxis: {
-      type: 'value',
-      minInterval: 1,
-      axisLine: { lineStyle: { color: getCssVar('--brand-gold') } },
-      axisLabel: { color: getCssVar('--brand-gold') }
-    },
-    series: [
-      {
-        name: 'Critical',
-        type: 'line',
-        data: [1, 2, 2, 3, 3, 3],
-        itemStyle: { color: '#FF4444' },
-        smooth: true
-      },
-      {
-        name: 'High',
-        type: 'line',
-        data: [8, 10, 11, 12, 12, 12],
-        itemStyle: { color: getCssVar('--brand-orange') },
-        smooth: true
-      },
-      {
-        name: 'Medium',
-        type: 'line',
-        data: [20, 22, 25, 27, 28, 28],
-        itemStyle: { color: getCssVar('--brand-gold') },
-        smooth: true
-      },
-      {
-        name: 'Low',
-        type: 'line',
-        data: [40, 42, 43, 44, 45, 45],
-        itemStyle: { color: getCssVar('--neon-green') },
-        smooth: true
-      }
-    ]
-  }
-
-  myChart.setOption(option)
-}
-
-function handleResize() {
-  if (myChart) {
-    myChart.resize()
-  }
-}
+const { start, stop } = useReports()
 
 onMounted(() => {
-  simulateReportGeneration()
-
-  nextTick(() => {
-    animateStatNumbers() // 這時才跑動畫，DOM 應該已經準備好
-  })
-
-  initChart()
-  window.addEventListener('resize', handleResize)
+  start()
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
-  if (myChart) {
-    myChart.dispose()
-    myChart = null
-  }
+  stop()
 })
 </script>
