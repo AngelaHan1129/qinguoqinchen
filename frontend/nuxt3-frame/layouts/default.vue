@@ -22,7 +22,7 @@
         <li v-if="pentestStore.started"><NuxtLink to="/ai">AI 分析</NuxtLink></li>
         <li v-if="pentestStore.started"><NuxtLink to="/reports">報告</NuxtLink></li>
       </ul>
-    </nav>`
+    </nav>
   </header>
 
 </template>
@@ -183,6 +183,8 @@
     
 </style>
 <script setup>
+import { useRouter, useRoute } from 'vue-router'
+
 useHead({
   title: 'QinGuoQinChen - 侵國侵城',
   meta: [
@@ -242,12 +244,17 @@ useHead({
     }, 50);
   });
 }
-    
+    const router = useRouter()
+const route = useRoute()
     onMounted(() => {
   createMatrix()
   createParticles()
   setTimeout(updateStats, 1000)
 
+  // 每次載入 layout 時強制導回首頁
+  if (route.path !== '/') {
+    router.push('/')
+  }
   document.querySelectorAll('.cyber-card').forEach(card => {
     card.addEventListener('mouseenter', function () {
       this.style.transform = 'translateY(-10px) rotateX(5deg)'
