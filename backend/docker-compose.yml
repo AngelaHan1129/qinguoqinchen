@@ -1,0 +1,35 @@
+﻿version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_DB: qinguoqinchen_ai
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: qinguoqinchen123
+    ports:
+      - "5847:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6390:6379"
+    volumes:
+      - redis_data:/data
+
+  neo4j:
+    image: neo4j:5.13-community
+    environment:
+      NEO4J_AUTH: neo4j/qinguoqinchen123
+    ports:
+      - "7693:7687"
+      - "7474:7474"
+    volumes:
+      - neo4j_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+  neo4j_data:

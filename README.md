@@ -1,5 +1,5 @@
 
-# 侵國侵城 AI 滲透測試系統
+# 侵國侵城 AI 滲透測試
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/qinguoqinchen/ai-security)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
