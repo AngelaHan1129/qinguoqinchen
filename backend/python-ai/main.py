@@ -1,24 +1,19 @@
-# python-ai/main.py
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from sentence_transformers import SentenceTransformer
+from typing import List
 import numpy as np
-from typing import List, Optional
-import logging
+import hashlib
 import time
+import logging
 
-# 設定日誌
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="侵國侵城 AI Embedding Service",
-    description="文本向量化服務，專為 RAG 系統設計",
-    version="1.0.0"
+    title="侵國侵城 AI Embedding Service (Lite)",
+    description="輕量版文本向量化服務",
+    version="1.0.0-lite"
 )
-
-# 全域變數存儲模型
-model = None
 
 class EmbeddingRequest(BaseModel):
     text: str
@@ -29,128 +24,100 @@ class EmbeddingResponse(BaseModel):
     dimension: int
     model: str
     processing_time: float
+    text_length: int
 
-class BatchEmbeddingRequest(BaseModel):
-    texts: List[str]
-    normalize: bool = True
+class MockEmbeddingModel:
+    def __init__(self):
+        self.model_name = "mock-e5-large-v2"
+        self.dimension = 1024
+        logger.info("✅ 模擬嵌入模型初始化完成")
+    
+    def encode(self, text: str, normalize_embeddings: bool = True) -> np.ndarray:
+        # 使用文本哈希生成固定但唯一的向量
+        hash_obj = hashlib.md5(text.encode('utf-8'))
+        hash_bytes = hash_obj.digest()
+        
+        # 擴展到 1024 維
+        vector = []
+        for i in range(self.dimension):
+            byte_idx = i % len(hash_bytes)
+            vector.append((hash_bytes[byte_idx] / 255.0) - 0.5)  # 歸一化到 [-0.5, 0.5]
+        
+        vector = np.array(vector, dtype=np.float32)
+        
+        if normalize_embeddings:
+            norm = np.linalg.norm(vector)
+            if norm > 0:
+                vector = vector / norm
+                
+        return vector
 
-class BatchEmbeddingResponse(BaseModel):
-    embeddings: List[List[float]]
-    dimension: int
-    model: str
-    count: int
-    processing_time: float
-
-@app.on_event("startup")
-async def startup_event():
-    """啟動時載入模型"""
-    global model
-    try:
-        logger.info("🚀 載入 E5-Large-V2 嵌入模型...")
-        model = SentenceTransformer('intfloat/e5-large-v2')
-        logger.info("✅ 模型載入成功！")
-    except Exception as e:
-        logger.error(f"❌ 模型載入失敗: {e}")
-        raise
+# 全域模型實例
+model = MockEmbeddingModel()
 
 @app.get("/")
 async def root():
     return {
-        "service": "侵國侵城 AI Embedding Service",
-        "version": "1.0.0",
-        "model": "intfloat/e5-large-v2",
+        "service": "侵國侵城 AI Embedding Service (Lite版本)",
+        "version": "1.0.0-lite",
+        "description": "輕量版向量化服務，用於開發測試",
+        "model": {
+            "name": "mock-e5-large-v2",
+            "dimension": 1024,
+            "status": "loaded",
+            "type": "simulation"
+        },
+        "note": "這是模擬版本，生產環境請使用完整版",
         "endpoints": {
-            "embed": "POST /embed - 單一文本向量化",
-            "embed/batch": "POST /embed/batch - 批量文本向量化",
+            "embed": "POST /embed - 文本向量化",
             "health": "GET /health - 健康檢查"
         }
     }
 
 @app.post("/embed", response_model=EmbeddingResponse)
 async def create_embedding(request: EmbeddingRequest):
-    """生成單一文本向量"""
-    if not model:
-        raise HTTPException(status_code=500, detail="模型未載入")
-    
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="文本內容不能為空")
     
     try:
         start_time = time.time()
         
-        # 生成嵌入向量
-        embedding = model.encode(
-            request.text, 
-            normalize_embeddings=request.normalize
-        )
-        
+        embedding = model.encode(request.text, request.normalize)
         processing_time = time.time() - start_time
+        
+        logger.info(f"📝 處理文本: {request.text[:50]}...")
         
         return EmbeddingResponse(
             embedding=embedding.tolist(),
             dimension=len(embedding),
-            model="intfloat/e5-large-v2",
-            processing_time=processing_time
+            model="mock-e5-large-v2",
+            processing_time=processing_time,
+            text_length=len(request.text)
         )
+        
     except Exception as e:
         logger.error(f"❌ 向量生成失敗: {e}")
         raise HTTPException(status_code=500, detail=f"向量生成失敗: {str(e)}")
 
-@app.post("/embed/batch", response_model=BatchEmbeddingResponse)
-async def create_batch_embeddings(request: BatchEmbeddingRequest):
-    """批量生成文本向量"""
-    if not model:
-        raise HTTPException(status_code=500, detail="模型未載入")
-    
-    if not request.texts or len(request.texts) == 0:
-        raise HTTPException(status_code=400, detail="文本列表不能為空")
-    
-    # 限制批量大小
-    if len(request.texts) > 100:
-        raise HTTPException(status_code=400, detail="批量大小不能超過 100")
-    
-    try:
-        start_time = time.time()
-        
-        # 批量生成嵌入向量
-        embeddings = model.encode(
-            request.texts, 
-            normalize_embeddings=request.normalize,
-            batch_size=32
-        )
-        
-        processing_time = time.time() - start_time
-        
-        return BatchEmbeddingResponse(
-            embeddings=[emb.tolist() for emb in embeddings],
-            dimension=len(embeddings[0]) if len(embeddings) > 0 else 0,
-            model="intfloat/e5-large-v2",
-            count=len(embeddings),
-            processing_time=processing_time
-        )
-    except Exception as e:
-        logger.error(f"❌ 批量向量生成失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"批量向量生成失敗: {str(e)}")
-
 @app.get("/health")
 async def health_check():
-    """健康檢查端點"""
-    model_status = "loaded" if model is not None else "not_loaded"
-    
     return {
-        "status": "healthy" if model is not None else "unhealthy",
-        "service": "侵國侵城 Embedding Service",
+        "status": "healthy",
+        "service": "侵國侵城 AI Embedding Service (Lite)",
+        "version": "1.0.0-lite",
         "model": {
-            "name": "intfloat/e5-large-v2",
-            "status": model_status,
-            "dimension": 1024
+            "name": "mock-e5-large-v2",
+            "status": "loaded",
+            "dimension": 1024,
+            "type": "simulation"
         },
         "system": {
-            "cpu_count": "available",
-            "memory": "sufficient"
-        }
+            "ready": True,
+            "note": "輕量版服務，適用於開發測試"
+        },
+        "timestamp": time.time()
     }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
