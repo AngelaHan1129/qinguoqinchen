@@ -1,9 +1,20 @@
-# compiled output
+# ===========================================
+# 🛡️ 侵國侵城 AI 滲透測試系統 - .gitignore
+# ===========================================
+
+# ===========================================
+# 📦 Node.js 相關 (原有內容優化)
+# ===========================================
+
+# 編譯輸出
 /dist
 /node_modules
 /build
+.next/
+.nuxt/
+out/
 
-# Logs
+# 日誌檔案
 logs
 *.log
 npm-debug.log*
@@ -12,14 +23,17 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# OS
+# 作業系統檔案
 .DS_Store
+Thumbs.db
+desktop.ini
 
-# Tests
+# 測試覆蓋率
 /coverage
 /.nyc_output
+.pytest_cache/
 
-# IDEs and editors
+# IDE 和編輯器
 /.idea
 .project
 .classpath
@@ -35,22 +49,183 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# dotenv environment variable files
+# 環境變數檔案 (已有但需加強)
 .env
 .env.development.local
 .env.test.local
 .env.production.local
 .env.local
+.env.staging
 
-# temp directory
+# 臨時目錄
 .temp
 .tmp
+temp/
+tmp/
 
-# Runtime data
+# 運行時資料
 pids
 *.pid
 *.seed
 *.pid.lock
 
-# Diagnostic reports (https://nodejs.org/api/report.html)
+# 診斷報告
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# ===========================================
+# 🐍 Python 相關 (新增關鍵部分)
+# ===========================================
+
+# Python 虛擬環境
+venv/
+env/
+ENV/
+.venv/
+.env/
+backend/python-ai/venv/
+backend/python-ai/env/
+
+# Python 編譯檔案
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Python 套件
+*.egg-info/
+dist/
+build/
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# ===========================================
+# 🤖 AI 模型和快取 (重要新增)
+# ===========================================
+
+# Transformers 和 AI 模型快取
+backend/python-ai/models/
+models/
+*.bin
+*.safetensors
+*.h5
+*.pt
+*.pth
+
+# HuggingFace 快取
+~/.cache/huggingface/
+.cache/
+.sentence_transformers_cache/
+
+# 向量資料庫檔案
+*.faiss
+*.index
+
+# ===========================================
+# 🔑 敏感檔案 (安全加強)
+# ===========================================
+
+# Google Cloud 和 AI API 憑證
+backend/vertex-ai-key.json
+vertex-ai-key.json
+*-key.json
+*-credentials.json
+*.pem
+*.p12
+
+# Google Cloud 相關
+gcp-*.json
+service-account*.json
+google-credentials*.json
+
+# API 金鑰檔案
+*api-key*.json
+*api-keys*.json
+
+# ===========================================
+# 📊 資料庫和資料檔案
+# ===========================================
+
+# 資料庫檔案
+*.db
+*.sqlite
+*.sqlite3
+
+# 上傳和報告檔案
+uploads/
+reports/
+allure-results/
+allure-report/
+test-results/
+
+# ===========================================
+# 🐳 Docker 和容器相關
+# ===========================================
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# ===========================================
+# 🔧 開發工具和建置
+# ===========================================
+
+# 套件鎖定檔案 (依專案需求)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# 建置產物
+*.tgz
+*.tar.gz
+
+# 壓縮檔案
+*.zip
+*.rar
+*.7z
+
+# 備份檔案
+*.backup
+*.bak
+*.orig
+
+# ===========================================
+# 🎯 專案特定檔案
+# ===========================================
+
+# 侵國侵城專案特定
+cache/
+.cache/
+
+# 測試資料
+test-data/
+mock-data/
+
+# 文檔產生
+docs/_build/
+docs/.doctrees/
+
+# ===========================================
+# 🚀 效能和監控
+# ===========================================
+
+# 效能分析檔案
+*.cpuprofile
+*.heapprofile
+
+# 監控和日誌
+monitoring/
+*.trace
