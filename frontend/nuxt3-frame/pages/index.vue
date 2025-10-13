@@ -158,7 +158,7 @@ function startPentest() {
   }
 
   alert('啟動滲透測試中...')
-  pentestStarted.value = true
+  
   pentestStore.startPentest()
 }
 
@@ -184,7 +184,7 @@ function updateStats() {
 onMounted(() => {
   urlInput.value = ''
   fileInput.value = null
-  pentestStore.resetPentest()
+  
   setTimeout(updateStats, 1000)
 
   document.querySelectorAll('.cyber-card').forEach(card => {
