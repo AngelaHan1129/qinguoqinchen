@@ -1,166 +1,212 @@
-import { Injectable } from '@nestjs/common';
-import { Neo4jService } from '../neo4j/neo4j.service.js';
+const { Injectable, Logger } = require('@nestjs/common');
+const { InjectRepository } = require('@nestjs/typeorm');
+const { Repository } = require('typeorm');
+const { ConfigService } = require('@nestjs/config');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
+const { Document } = require('../database/entities/document.entity');
+const { Chunk } = require('../database/entities/chunk.entity');
 
 @Injectable()
-export class RagService {
-  constructor(neo4jService) {
-    this.neo4jService = neo4jService;
-  }
+class RagService {
+  constructor(documentRepo, chunkRepo, configService) {
+    this.documentRepo = documentRepo;
+    this.chunkRepo = chunkRepo;
+    this.configService = configService;
+    this.logger = new Logger(RagService.name);
 
-  // 存儲滲透測試向量數據
-  async storePenetrationVector(testData, embedding, metadata) {
-    const session = this.neo4jService.getSession();
-    
-    try {
-      await session.run(`
-        CREATE (pt:PenetrationTest {
-          testId: $testId,
-          attackVectors: $attackVectors,
-          results: $results,
-          embedding: $embedding,
-          timestamp: datetime(),
-          category: $category,
-          severity: $severity
-        })
-        CREATE (meta:TestMetadata {
-          apcer: $apcer,
-          bpcer: $bpcer,
-          acer: $acer,
-          eer: $eer,
-          overallBypass: $overallBypass
-        })
-        CREATE (pt)-[:HAS_METRICS]->(meta)
-      `, {
-        testId: metadata.testId,
-        attackVectors: JSON.stringify(testData.vectors),
-        results: JSON.stringify(testData.results),
-        embedding: embedding,
-        category: metadata.category || 'eKYC_PENETRATION',
-        severity: metadata.severity || 'MEDIUM',
-        apcer: testData.penetrationMetrics?.apcer || 0,
-        bpcer: testData.penetrationMetrics?.bpcer || 0,
-        acer: testData.penetrationMetrics?.acer || 0,
-        eer: testData.penetrationMetrics?.eer || 0,
-        overallBypass: testData.overallBypass || false
-      });
-
-      console.log(`滲透測試數據已存儲: ${metadata.testId}`);
-    } finally {
-      await session.close();
-    }
-  }
-
-  // 搜尋相似的攻擊模式
-  async searchSimilarAttackPatterns(queryEmbedding, category = null, limit = 10) {
-    const session = this.neo4jService.getSession();
-    
-    try {
-      const categoryFilter = category ? 'AND pt.category = $category' : '';
-      
-      const result = await session.run(`
-        MATCH (pt:PenetrationTest)-[:HAS_METRICS]->(meta:TestMetadata)
-        WHERE size(pt.embedding) = size($queryEmbedding) ${categoryFilter}
-        WITH pt, meta,
-             reduce(similarity = 0.0, i IN range(0, size($queryEmbedding)-1) | 
-               similarity + ($queryEmbedding[i] * pt.embedding[i])) AS cosineSimilarity
-        RETURN pt.testId as testId,
-               pt.attackVectors as attackVectors,
-               pt.results as results,
-               pt.severity as severity,
-               meta.apcer as apcer,
-               meta.bpcer as bpcer,
-               meta.acer as acer,
-               meta.overallBypass as overallBypass,
-               cosineSimilarity
-        ORDER BY cosineSimilarity DESC
-        LIMIT $limit
-      `, { queryEmbedding, category, limit });
-
-      return result.records.map(record => ({
-        testId: record.get('testId'),
-        attackVectors: JSON.parse(record.get('attackVectors')),
-        results: JSON.parse(record.get('results')),
-        severity: record.get('severity'),
-        metrics: {
-          apcer: record.get('apcer'),
-          bpcer: record.get('bpcer'),
-          acer: record.get('acer'),
-          overallBypass: record.get('overallBypass')
-        },
-        similarity: record.get('cosineSimilarity')
-      }));
-    } finally {
-      await session.close();
-    }
-  }
-
-  // 生成防禦建議
-  async generateDefenseRecommendations(attackPattern) {
-    const similarPatterns = await this.searchSimilarAttackPatterns(
-      attackPattern.embedding, 
-      'eKYC_PENETRATION', 
-      5
+    // 初始化 Gemini AI
+    this.genAI = new GoogleGenerativeAI(
+      this.configService.get('GEMINI_API_KEY')
     );
-
-    const recommendations = [];
-    
-    // 根據歷史攻擊模式生成建議
-    if (similarPatterns.some(p => p.metrics.apcer > 0.7)) {
-      recommendations.push({
-        priority: 'CRITICAL',
-        category: 'DETECTION_ENHANCEMENT',
-        suggestion: '強化攻擊樣本檢測能力，降低 APCER 至 0.5 以下',
-        implementation: '調整檢測閾值、增加對抗性訓練樣本'
-      });
-    }
-
-    if (similarPatterns.some(p => p.metrics.bpcer > 0.3)) {
-      recommendations.push({
-        priority: 'HIGH',
-        category: 'FALSE_POSITIVE_REDUCTION',
-        suggestion: '優化正常樣本分類，降低誤殺率',
-        implementation: '重新訓練分類模型、調整決策邊界'
-      });
-    }
-
-    return {
-      totalRecommendations: recommendations.length,
-      recommendations,
-      basedOnPatterns: similarPatterns.length,
-      confidence: similarPatterns.length > 3 ? 'HIGH' : 'MEDIUM'
-    };
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
   }
 
-  // 向量化攻擊數據
-  async generateAttackEmbedding(attackData) {
-    // 簡化的向量化過程，實際應整合 Google Vertex AI
-    const features = [];
-    
-    // 攻擊向量特徵
-    const vectorFeatures = attackData.vectors.map(v => {
-      switch(v) {
-        case 'A1': return [1, 0, 0, 0, 0]; // StyleGAN3
-        case 'A2': return [0, 1, 0, 0, 0]; // StableDiffusion
-        case 'A3': return [0, 0, 1, 0, 0]; // SimSwap
-        case 'A4': return [0, 0, 0, 1, 0]; // Diffusion+GAN
-        case 'A5': return [0, 0, 0, 0, 1]; // DALL·E
-        default: return [0, 0, 0, 0, 0];
+  async askQuestion(question, filters = {}) {
+    try {
+      this.logger.log(`處理 RAG 查詢: ${question}`);
+
+      // 1. 向量檢索相似文檔
+      const relevantChunks = await this.retrieveRelevantChunks(question, filters);
+
+      if (relevantChunks.length === 0) {
+        return {
+          answer: '抱歉，在現有的滲透測試報告中找不到相關資訊。請檢查查詢條件或聯絡管理員。',
+          sources: [],
+          timestamp: new Date()
+        };
       }
-    }).flat();
 
-    // 成功率特徵
-    const successRate = attackData.results.filter(r => r.success).length / attackData.results.length;
-    
-    // 信心度特徵
-    const avgConfidence = attackData.results.reduce((sum, r) => sum + r.confidence, 0) / attackData.results.length;
+      // 2. 組合 RAG 提示
+      const context = relevantChunks
+        .map(chunk => `[文檔ID: ${chunk.documentId}][相似度: ${(chunk.similarity * 100).toFixed(1)}%] ${chunk.text}`)
+        .join('\n\n');
 
-    features.push(...vectorFeatures, successRate, avgConfidence);
-    
-    // 補齊到固定維度 (768 維，對應典型的 transformer 嵌入)
-    while (features.length < 768) {
-      features.push(Math.random() * 0.1 - 0.05); // 小隨機值
+      const prompt = this.buildRagPrompt(context, question);
+
+      // 3. Gemini 生成回答
+      const result = await this.model.generateContent(prompt);
+      const response = result.response.text();
+
+      // 4. 記錄審計日誌
+      await this.logRagQuery(question, relevantChunks.map(c => c.id), response);
+
+      return {
+        answer: response,
+        sources: relevantChunks.map(chunk => ({
+          documentId: chunk.documentId,
+          chunkId: chunk.id,
+          similarity: chunk.similarity,
+          attackVector: chunk.attackVector,
+          runId: chunk.runId,
+          preview: chunk.text.substring(0, 200) + '...'
+        })),
+        timestamp: new Date()
+      };
+
+    } catch (error) {
+      this.logger.error(`RAG 查詢失敗: ${error.message}`);
+      throw new Error(`RAG 系統錯誤: ${error.message}`);
+    }
+  }
+
+  async retrieveRelevantChunks(question, filters, topK = 5) {
+    try {
+      // 呼叫 Python AI 服務生成查詢向量
+      const embedding = await this.getEmbedding(question);
+
+      // PostgreSQL 向量相似度查詢
+      let queryBuilder = this.chunkRepo
+        .createQueryBuilder('chunk')
+        .leftJoinAndSelect('chunk.document', 'document')
+        .select([
+          'chunk.id',
+          'chunk.text',
+          'chunk.documentId',
+          'document.source',
+          'document.type',
+          'document.metadata',
+          `(1 - (chunk.embedding <=> '[${embedding.join(',')}]')) as similarity`
+        ])
+        .where('chunk.embedding IS NOT NULL')
+        .orderBy('similarity', 'DESC')
+        .limit(topK);
+
+      // 應用過濾條件
+      if (filters.attackVector) {
+        queryBuilder = queryBuilder.andWhere(
+          "document.metadata->>'attackVector' = :attackVector",
+          { attackVector: filters.attackVector }
+        );
+      }
+
+      if (filters.runId) {
+        queryBuilder = queryBuilder.andWhere(
+          "document.metadata->>'runId' = :runId",
+          { runId: filters.runId }
+        );
+      }
+
+      if (filters.documentType) {
+        queryBuilder = queryBuilder.andWhere(
+          'document.type = :type',
+          { type: filters.documentType }
+        );
+      }
+
+      const results = await queryBuilder.getRawMany();
+
+      // 加上 metadata 欄位到結果中
+      return results.map(result => ({
+        ...result,
+        attackVector: result.document_metadata?.attackVector,
+        runId: result.document_metadata?.runId,
+        similarity: parseFloat(result.similarity)
+      }));
+
+    } catch (error) {
+      this.logger.error(`向量檢索失敗: ${error.message}`);
+      return [];
+    }
+  }
+
+  async getEmbedding(text) {
+    try {
+      const pythonAiUrl = this.configService.get('PYTHON_AI_URL');
+      const response = await axios.post(`${pythonAiUrl}/embed`, {
+        text: text
+      });
+
+      return response.data.embedding;
+    } catch (error) {
+      this.logger.error(`生成向量失敗: ${error.message}`);
+      throw error;
+    }
+  }
+
+  buildRagPrompt(context, question) {
+    return `你是「侵國侵城」eKYC 滲透測試系統的智慧助理，專門分析滲透測試報告並提供資安改善建議。
+
+基於以下滲透測試文檔內容回答問題：
+
+== 滲透測試報告內容 ==
+${context}
+
+== 用戶問題 ==
+${question}
+
+== 回答要求 ==
+1. 只能基於提供的滲透測試報告內容回答
+2. 必須在答案中標註引用的文檔ID和相似度分數
+3. 針對 eKYC 系統的 AI 攻擊提供具體防護建議
+4. 如果涉及 APCER、BPCER、ACER、ROC-AUC、EER 等指標，請詳細解釋
+5. 提供可操作的改善措施，包含技術面和流程面
+6. 如果文檔中沒有相關資訊，請明確說明並建議進一步的測試方向
+
+請以專業的資安專家角度回答：`;
+  }
+
+  async logRagQuery(question, chunkIds, response) {
+    const logData = {
+      timestamp: new Date(),
+      question: question,
+      usedChunks: chunkIds,
+      responseLength: response.length,
+      systemVersion: '1.0.0'
+    };
+
+    this.logger.log(`RAG 查詢記錄: ${JSON.stringify(logData)}`);
+
+    // 可選：寫入審計資料庫表
+    // await this.auditRepo.save(logData);
+  }
+
+  // 批次更新文檔向量
+  async updateDocumentEmbeddings(batchSize = 50) {
+    const chunks = await this.chunkRepo.find({
+      where: { embedding: null },
+      take: batchSize
+    });
+
+    for (const chunk of chunks) {
+      try {
+        const embedding = await this.getEmbedding(chunk.text);
+        chunk.embedding = `[${embedding.join(',')}]`;
+        await this.chunkRepo.save(chunk);
+
+        this.logger.log(`已更新 chunk ${chunk.id} 的向量`);
+      } catch (error) {
+        this.logger.error(`更新 chunk ${chunk.id} 向量失敗: ${error.message}`);
+      }
     }
 
-    return features.slice(0, 768);
+    return chunks.length;
   }
 }
+
+// 手動依賴注入裝飾器模擬
+function createRagService(documentRepo, chunkRepo, configService) {
+  return new RagService(documentRepo, chunkRepo, configService);
+}
+
+module.exports = { RagService, createRagService };

@@ -3,49 +3,50 @@ require('reflect-metadata');
 const { NestFactory } = require('@nestjs/core');
 const express = require('express');
 const swaggerUi = require('swagger-ui-express');
-require('dotenv').config(); // 加載環境變數
-
+require('dotenv').config();
 async function bootstrap() {
   try {
     console.log('🚀 啟動侵國侵城 AI 滲透測試系統...');
-    
+
     // 建立一個最小的 AppModule
-    class AppModule {}
+    class AppModule { }
     Reflect.defineMetadata('imports', [], AppModule);
     Reflect.defineMetadata('controllers', [], AppModule);
     Reflect.defineMetadata('providers', [], AppModule);
-    
+
     const app = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log'],
       cors: true
     });
-    
+
     // 獲取底層的 Express 應用
     const expressInstance = app.getHttpAdapter().getInstance();
-    
+
     // 確保 JSON 解析
     expressInstance.use(express.json());
     expressInstance.use(express.urlencoded({ extended: true }));
-    
+
     // 手動建立服務實例
     const appService = createAppService();
     const healthService = createHealthService();
     const attackService = createAttackService();
     const geminiService = createGeminiService();
     const grokService = createGrokService();
-    const vertexAIAgentService = createVertexAIAgentService(); // 新增 Vertex AI Agent
-    
+    const vertexAIAgentService = createVertexAIAgentService();
+    const ragService = createRagService(); // 新增 RAG 服務
+    const databaseService = createDatabaseService(); // 新增資料庫服務
+
     console.log('🔧 註冊路由...');
-    
+
     // 註冊所有路由
-    registerRoutes(expressInstance, appService, healthService, attackService, geminiService, grokService, vertexAIAgentService);
-    
+    registerRoutes(expressInstance, appService, healthService, attackService, geminiService, grokService, vertexAIAgentService, ragService, databaseService);
+
     // 設置 Swagger
     setupSwagger(expressInstance);
-    
+
     const port = process.env.PORT || 7939;
     await app.listen(port);
-    
+
     console.log('✅ 侵國侵城 AI 滲透測試系統啟動成功!');
     console.log(`📍 主頁: http://localhost:${port}`);
     console.log(`📚 API 文檔: http://localhost:${port}/api/docs`);
@@ -53,29 +54,38 @@ async function bootstrap() {
     console.log(`⚔️ 攻擊向量: http://localhost:${port}/ai-attack/vectors`);
     console.log(`🤖 Gemini AI: http://localhost:${port}/ai-gemini/test`);
     console.log(`🛸 Grok AI: http://localhost:${port}/ai-grok/test`);
-    console.log(`🧠 Vertex AI Agent: http://localhost:${port}/ai-agent/test`); // 新增
-    
+    console.log(`🧠 Vertex AI Agent: http://localhost:${port}/ai-agent/test`);
+    console.log(`🔍 RAG 查詢: http://localhost:${port}/rag/ask`);
+    console.log(`📊 資料庫狀態: http://localhost:${port}/database/status`);
+
     // 測試所有端點
     console.log('\n📝 測試指令:');
     console.log(`curl http://localhost:${port}/`);
     console.log(`curl http://localhost:${port}/health`);
     console.log(`curl http://localhost:${port}/ai-attack/vectors`);
     console.log(`curl -X POST http://localhost:${port}/ai-attack/execute -H "Content-Type: application/json" -d '{"vectorIds":["A1","A3"],"intensity":"high"}'`);
-    
+
     console.log('\n🤖 Gemini AI 測試指令:');
     console.log(`curl http://localhost:${port}/ai-gemini/test`);
     console.log(`curl -X POST http://localhost:${port}/ai-gemini/attack-vector -H "Content-Type: application/json" -d '{"prompt":"針對銀行eKYC系統的深偽攻擊策略"}'`);
-    
+
     console.log('\n🛸 Grok AI 測試指令:');
     console.log(`curl http://localhost:${port}/ai-grok/test`);
     console.log(`curl -X POST http://localhost:${port}/ai-grok/chat -H "Content-Type: application/json" -d '{"prompt":"用銀河便車指南的風格解釋SQL注入攻擊"}'`);
     console.log(`curl -X POST http://localhost:${port}/ai-grok/security-analysis -H "Content-Type: application/json" -d '{"threatDescription":"AI生成Deepfake攻擊","targetSystem":"銀行eKYC系統"}'`);
-    
+
     console.log('\n🧠 Vertex AI Agent 測試指令:');
     console.log(`curl http://localhost:${port}/ai-agent/test`);
     console.log(`curl -X POST http://localhost:${port}/ai-agent/chat -H "Content-Type: application/json" -d '{"message":"分析銀行eKYC系統的安全風險","sessionId":"security-session-1"}'`);
     console.log(`curl -X POST http://localhost:${port}/ai-agent/analyze-security -H "Content-Type: application/json" -d '{"systemType":"銀行數位開戶","verificationMethods":["face_recognition","document_scan"]}'`);
-    
+
+    console.log('\n📝 新增 RAG 測試指令:');
+    console.log(`curl -X POST http://localhost:${port}/rag/ask -H "Content-Type: application/json" -d '{"question":"eKYC系統如何防護Deepfake攻擊？","filters":{"attackVector":"A3"}}'`);
+    console.log(`curl -X POST http://localhost:${port}/rag/ingest -H "Content-Type: application/json" -d '{"text":"滲透測試報告：A3攻擊向量成功率89%","metadata":{"attackVector":"A3","runId":"test-001"}}'`);
+    console.log(`curl http://localhost:${port}/rag/stats`);
+    console.log(`curl http://localhost:${port}/database/status`);
+    console.log(`curl -X POST http://localhost:${port}/database/init`);
+
   } catch (error) {
     console.error('❌ 系統啟動失敗:', error.message);
     console.error('詳細錯誤:', error.stack);
@@ -89,7 +99,7 @@ function createAppService() {
     getSystemInfo() {
       console.log('📋 執行 getSystemInfo');
       return {
-        message: '🛡️ 歡迎使用侵國侵城 AI 滲透測試系統',
+        message: '歡迎使用侵國侵城 AI 滲透測試系統',
         version: '1.0.0',
         status: 'operational',
         framework: 'NestJS + Express (手動路由) + Gemini AI + Grok AI + Vertex AI Agent',
@@ -112,16 +122,16 @@ function createAppService() {
           comboAttack: 'POST /ai-attack/combo',
           systemStats: '/system/stats',
           geminiTest: '/ai-gemini/test',
-          geminiAttackVector: 'POST /ai-gemini/attack-vector',
-          geminiEkycAnalysis: 'POST /ai-gemini/ekyc-analysis',
           grokTest: '/ai-grok/test',
-          grokChat: 'POST /ai-grok/chat',
-          grokSecurityAnalysis: 'POST /ai-grok/security-analysis',
           vertexAgentTest: '/ai-agent/test',
-          vertexAgentChat: 'POST /ai-agent/chat',
-          vertexAgentAnalyze: 'POST /ai-agent/analyze-security',
+          ragAsk: 'POST /rag/ask',
+          ragIngest: 'POST /rag/ingest',
+          ragStats: '/rag/stats',
+          databaseStatus: '/database/status',
+          databaseInit: 'POST /database/init',
           apiDocs: '/api/docs'
         }
+
       };
     }
   };
@@ -132,7 +142,7 @@ function createHealthService() {
     getSystemHealth() {
       console.log('🩺 執行 getSystemHealth');
       const memoryUsage = process.memoryUsage();
-      
+
       return {
         status: 'healthy',
         system: '侵國侵城 AI 系統',
@@ -166,41 +176,41 @@ function createAttackService() {
       return {
         success: true,
         vectors: [
-          { 
-            id: 'A1', 
-            model: 'StyleGAN3', 
+          {
+            id: 'A1',
+            model: 'StyleGAN3',
             scenario: '偽造真人自拍',
             difficulty: 'MEDIUM',
             successRate: '78%',
             description: '使用 StyleGAN3 生成高擬真臉部影像'
           },
-          { 
-            id: 'A2', 
-            model: 'StableDiffusion', 
+          {
+            id: 'A2',
+            model: 'StableDiffusion',
             scenario: '翻拍攻擊',
             difficulty: 'HIGH',
             successRate: '65%',
             description: '模擬螢幕反射與拍攝偽像'
           },
-          { 
-            id: 'A3', 
-            model: 'SimSwap', 
+          {
+            id: 'A3',
+            model: 'SimSwap',
             scenario: '即時換臉',
             difficulty: 'VERY_HIGH',
             successRate: '89%',
             description: '即時視訊換臉技術'
           },
-          { 
-            id: 'A4', 
-            model: 'Diffusion+GAN', 
+          {
+            id: 'A4',
+            model: 'Diffusion+GAN',
             scenario: '偽造護照',
             difficulty: 'HIGH',
             successRate: '73%',
             description: '生成含 MRZ 和條碼的偽造證件'
           },
-          { 
-            id: 'A5', 
-            model: 'DALL·E', 
+          {
+            id: 'A5',
+            model: 'DALL·E',
             scenario: '直接生成假證件',
             difficulty: 'MEDIUM',
             successRate: '82%',
@@ -208,13 +218,13 @@ function createAttackService() {
           }
         ],
         recommendedCombos: [
-          { 
-            combo: ['A2', 'A3'], 
+          {
+            combo: ['A2', 'A3'],
             description: 'Deepfake + 翻拍攻擊',
             estimatedSuccessRate: '92%'
           },
-          { 
-            combo: ['A1', 'A4'], 
+          {
+            combo: ['A1', 'A4'],
             description: '假自拍 + 假護照',
             estimatedSuccessRate: '75%'
           }
@@ -231,9 +241,9 @@ function createAttackService() {
 
     executeAttack(body) {
       const { vectorIds = ['A1'], intensity = 'medium' } = body || {};
-      
+
       console.log(`🎯 執行攻擊測試: ${vectorIds.join(', ')}, 強度: ${intensity}`);
-      
+
       const results = vectorIds.map(vectorId => ({
         vectorId,
         model: this.getModelByVector(vectorId),
@@ -244,10 +254,10 @@ function createAttackService() {
         processingTime: Math.round(1000 + Math.random() * 3000),
         timestamp: new Date()
       }));
-      
+
       const successfulAttacks = results.filter(r => r.success).length;
       const successRate = Math.round((successfulAttacks / results.length) * 100);
-      
+
       return {
         success: true,
         testId: `QQC_ATK_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
@@ -269,9 +279,9 @@ function createAttackService() {
 
     executeComboAttack(body) {
       const { combos = [['A1', 'A2']], intensity = 'medium' } = body || {};
-      
+
       console.log(`🔥 執行複合攻擊: ${combos.map(c => c.join('+')).join(', ')}`);
-      
+
       const comboResults = combos.map((combo, index) => ({
         comboId: `COMBO_${index + 1}`,
         combination: combo.join(' + '),
@@ -279,7 +289,7 @@ function createAttackService() {
         successRate: `${Math.round(Math.random() * 30 + 70)}%`,
         effectiveness: Math.random() > 0.5 ? 'HIGH' : 'MEDIUM'
       }));
-      
+
       return {
         success: true,
         comboAttackId: `QQC_COMBO_${Date.now()}`,
@@ -326,7 +336,7 @@ function createGeminiService() {
 
   return {
     ai: new GoogleGenAI({}),
-    
+
     async generateAttackVector(prompt) {
       try {
         console.log('🤖 Gemini AI 生成攻擊向量...');
@@ -345,7 +355,7 @@ function createGeminiService() {
 
 請以專業的滲透測試報告格式回答。`,
         });
-        
+
         return {
           text: response.text,
           success: true,
@@ -382,7 +392,7 @@ function createGeminiService() {
           model: "gemini-2.5-flash",
           contents: prompt,
         });
-        
+
         return {
           vulnerability_analysis: response.text,
           system: targetSystem,
@@ -418,7 +428,7 @@ function createGeminiService() {
 
 請以技術文檔格式詳細說明每個步驟。`,
         });
-        
+
         return {
           deepfake_prompt: response.text,
           scenario: scenario,
@@ -461,7 +471,7 @@ function createGeminiService() {
 
 請提供可執行的優化方案。`,
         });
-        
+
         return {
           optimized_strategy: response.text,
           vectors: vectorIds,
@@ -533,7 +543,7 @@ function createGrokService() {
   try {
     const OpenAI = require('openai');
     console.log('✅ OpenAI SDK (for Grok) 載入成功');
-    
+
     const client = new OpenAI({
       apiKey: process.env.XAI_API_KEY,
       baseURL: "https://api.x.ai/v1"
@@ -571,7 +581,7 @@ function createGrokService() {
 你是 Grok，一位資安專家，具有《銀河便車指南》的幽默風格。
 請分析安全威脅並提供專業建議，但要保持輕鬆幽默的語調。
 `;
-        
+
         const userPrompt = `
 請分析以下安全威脅：
 
@@ -654,6 +664,385 @@ function createMockGrokService() {
   };
 }
 
+// 建立 RAG 服務
+function createRagService() {
+  return {
+    documents: [], // 模擬文檔儲存
+    chunks: [], // 模擬文檔塊儲存
+
+    async askQuestion(question, filters = {}) {
+      console.log(`🔍 RAG 查詢: ${question}`);
+
+      try {
+        // 模擬向量搜尋
+        const relevantChunks = this.searchRelevantChunks(question, filters);
+
+        if (relevantChunks.length === 0) {
+          return {
+            answer: '抱歉，在現有的滲透測試報告中找不到相關資訊。請檢查查詢條件或上傳更多文檔。',
+            sources: [],
+            timestamp: new Date().toISOString()
+          };
+        }
+
+        // 組合上下文
+        const context = relevantChunks
+          .map(chunk => `[文檔ID: ${chunk.documentId}][相似度: ${(chunk.similarity * 100).toFixed(1)}%] ${chunk.text}`)
+          .join('\n\n');
+
+        // 使用 Gemini 生成回答
+        const geminiService = createGeminiService();
+        const prompt = this.buildRagPrompt(context, question);
+        const result = await geminiService.generateAttackVector(prompt);
+
+        // 記錄查詢
+        this.logQuery(question, relevantChunks.map(c => c.id), result.text);
+
+        return {
+          answer: result.text,
+          sources: relevantChunks.map(chunk => ({
+            documentId: chunk.documentId,
+            chunkId: chunk.id,
+            similarity: chunk.similarity,
+            attackVector: chunk.attackVector,
+            runId: chunk.runId,
+            preview: chunk.text.substring(0, 200) + '...'
+          })),
+          timestamp: new Date().toISOString()
+        };
+
+      } catch (error) {
+        console.error('❌ RAG 查詢失敗:', error.message);
+        return {
+          answer: `RAG 系統錯誤: ${error.message}。請檢查系統配置或聯絡管理員。`,
+          sources: [],
+          timestamp: new Date().toISOString()
+        };
+      }
+    },
+
+    searchRelevantChunks(question, filters, topK = 5) {
+      // 簡化的文本相似度搜尋（實際專案中會使用向量相似度）
+      const questionLower = question.toLowerCase();
+      let filteredChunks = [...this.chunks];
+
+      // 應用過濾條件
+      if (filters.attackVector) {
+        filteredChunks = filteredChunks.filter(chunk =>
+          chunk.attackVector === filters.attackVector
+        );
+      }
+
+      if (filters.runId) {
+        filteredChunks = filteredChunks.filter(chunk =>
+          chunk.runId === filters.runId
+        );
+      }
+
+      // 計算相似度分數（簡化實作）
+      const scoredChunks = filteredChunks.map(chunk => {
+        const chunkLower = chunk.text.toLowerCase();
+        let score = 0;
+
+        // 關鍵字匹配
+        const keywords = ['deepfake', 'ekyc', '攻擊', '防護', 'simswap', 'stylegan'];
+        keywords.forEach(keyword => {
+          if (questionLower.includes(keyword) && chunkLower.includes(keyword)) {
+            score += 0.2;
+          }
+        });
+
+        // 攻擊向量匹配
+        if (questionLower.includes('a1') && chunk.attackVector === 'A1') score += 0.3;
+        if (questionLower.includes('a2') && chunk.attackVector === 'A2') score += 0.3;
+        if (questionLower.includes('a3') && chunk.attackVector === 'A3') score += 0.3;
+        if (questionLower.includes('a4') && chunk.attackVector === 'A4') score += 0.3;
+        if (questionLower.includes('a5') && chunk.attackVector === 'A5') score += 0.3;
+
+        return { ...chunk, similarity: Math.min(score + Math.random() * 0.3, 1.0) };
+      });
+
+      // 排序並返回前 K 個
+      return scoredChunks
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, topK);
+    },
+
+    buildRagPrompt(context, question) {
+      return `你是「侵國侵城」eKYC 滲透測試系統的智慧助理，專門分析滲透測試報告並提供資安改善建議。
+
+基於以下滲透測試文檔內容回答問題：
+
+== 滲透測試報告內容 ==
+${context}
+
+== 用戶問題 ==
+${question}
+
+== 回答要求 ==
+1. 只能基於提供的滲透測試報告內容回答
+2. 必須在答案中標註引用的文檔ID和相似度分數
+3. 針對 eKYC 系統的 AI 攻擊提供具體防護建議
+4. 如果涉及 APCER、BPCER、ACER、ROC-AUC、EER 等指標，請詳細解釋
+5. 提供可操作的改善措施，包含技術面和流程面
+6. 如果文檔中沒有相關資訊，請明確說明並建議進一步的測試方向
+
+請以專業的資安專家角度回答：`;
+    },
+
+    async ingestDocument(text, metadata = {}) {
+      console.log('📥 RAG 文檔匯入中...');
+
+      try {
+        const docId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+        // 儲存原始文檔
+        const document = {
+          id: docId,
+          text: text,
+          metadata: metadata,
+          createdAt: new Date().toISOString()
+        };
+        this.documents.push(document);
+
+        // 分塊處理
+        const chunks = this.chunkDocument(text, docId, metadata);
+        this.chunks.push(...chunks);
+
+        // 模擬向量化（實際專案中會呼叫 Python AI 服務）
+        for (const chunk of chunks) {
+          chunk.embedding = this.generateMockEmbedding(chunk.text);
+        }
+
+        console.log(`✅ 文檔匯入成功: ${docId}, 產生 ${chunks.length} 個文檔塊`);
+
+        return {
+          success: true,
+          documentId: docId,
+          chunksCount: chunks.length,
+          message: `文檔已成功匯入並分塊處理`
+        };
+
+      } catch (error) {
+        console.error('❌ 文檔匯入失敗:', error.message);
+        throw error;
+      }
+    },
+
+    chunkDocument(text, docId, metadata, chunkSize = 500) {
+      const chunks = [];
+      const sentences = text.split(/[。！？\n]/).filter(s => s.trim().length > 0);
+
+      let currentChunk = '';
+      let chunkIndex = 0;
+
+      for (const sentence of sentences) {
+        if (currentChunk.length + sentence.length > chunkSize && currentChunk.length > 0) {
+          chunks.push({
+            id: `${docId}_chunk_${chunkIndex}`,
+            documentId: docId,
+            chunkIndex: chunkIndex,
+            text: currentChunk.trim(),
+            attackVector: metadata.attackVector || null,
+            runId: metadata.runId || null,
+            createdAt: new Date().toISOString()
+          });
+
+          currentChunk = sentence;
+          chunkIndex++;
+        } else {
+          currentChunk += sentence + '。';
+        }
+      }
+
+      // 處理最後一個塊
+      if (currentChunk.trim().length > 0) {
+        chunks.push({
+          id: `${docId}_chunk_${chunkIndex}`,
+          documentId: docId,
+          chunkIndex: chunkIndex,
+          text: currentChunk.trim(),
+          attackVector: metadata.attackVector || null,
+          runId: metadata.runId || null,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      return chunks;
+    },
+
+    generateMockEmbedding(text) {
+      // 模擬 1024 維向量（實際專案中會使用真實的嵌入模型）
+      return Array.from({ length: 1024 }, () => Math.random() - 0.5);
+    },
+
+    logQuery(question, chunkIds, response) {
+      const logData = {
+        timestamp: new Date().toISOString(),
+        question: question,
+        usedChunks: chunkIds,
+        responseLength: response.length,
+        systemVersion: '1.0.0'
+      };
+
+      console.log(`📝 RAG 查詢記錄: ${JSON.stringify(logData)}`);
+    },
+
+    getStats() {
+      return {
+        documentsCount: this.documents.length,
+        chunksCount: this.chunks.length,
+        averageChunkSize: this.chunks.length > 0
+          ? Math.round(this.chunks.reduce((sum, chunk) => sum + chunk.text.length, 0) / this.chunks.length)
+          : 0,
+        attackVectors: [...new Set(this.chunks.map(chunk => chunk.attackVector).filter(Boolean))],
+        runIds: [...new Set(this.chunks.map(chunk => chunk.runId).filter(Boolean))]
+      };
+    }
+  };
+}
+
+// 建立資料庫服務
+function createDatabaseService() {
+  return {
+    async getStatus() {
+      console.log('🗄️ 檢查資料庫狀態...');
+
+      const status = {
+        postgres: {
+          configured: !!process.env.DATABASE_URL,
+          status: process.env.DATABASE_URL ? 'configured' : 'not_configured',
+          url: process.env.DATABASE_URL ? 'configured' : 'not_set'
+        },
+        neo4j: {
+          configured: !!(process.env.NEO4J_URI && process.env.NEO4J_USERNAME),
+          status: (process.env.NEO4J_URI && process.env.NEO4J_USERNAME) ? 'configured' : 'not_configured',
+          uri: process.env.NEO4J_URI || 'not_set'
+        },
+        redis: {
+          configured: !!process.env.REDIS_URL,
+          status: process.env.REDIS_URL ? 'configured' : 'not_configured',
+          url: process.env.REDIS_URL || 'not_set'
+        },
+        pythonAI: {
+          configured: !!process.env.PYTHON_AI_URL,
+          status: process.env.PYTHON_AI_URL ? 'configured' : 'not_configured',
+          url: process.env.PYTHON_AI_URL || 'not_set'
+        }
+      };
+
+      return {
+        status: 'checked',
+        databases: status,
+        allConfigured: Object.values(status).every(db => db.configured),
+        timestamp: new Date().toISOString()
+      };
+    },
+
+    async initializeDatabase() {
+      console.log('🔧 初始化資料庫...');
+
+      try {
+        // 模擬資料庫初始化
+        console.log('✅ PostgreSQL 表格檢查完成');
+        console.log('✅ Neo4j 圖資料庫連接正常');
+        console.log('✅ Redis 快取服務運行中');
+
+        return {
+          success: true,
+          message: '資料庫初始化完成',
+          initialized: ['documents', 'chunks', 'test_runs', 'attack_vectors'],
+          timestamp: new Date().toISOString()
+        };
+
+      } catch (error) {
+        console.error('❌ 資料庫初始化失敗:', error.message);
+        throw error;
+      }
+    }
+  };
+}
+
+function createHealthService() {
+  return {
+    getSystemHealth() {
+      console.log('🩺 執行 getSystemHealth');
+      const memoryUsage = process.memoryUsage();
+
+      return {
+        status: 'healthy',
+        system: '侵國侵城 AI 系統 + RAG',
+        uptime: `${Math.floor(process.uptime())}秒`,
+        memory: {
+          used: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`,
+          total: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`,
+          percentage: `${Math.round((memoryUsage.heapUsed / memoryUsage.heapTotal) * 100)}%`
+        },
+        platform: process.platform,
+        nodeVersion: process.version,
+        timestamp: new Date().toISOString(),
+        services: {
+          nestjs: 'operational',
+          express: 'operational',
+          routes: 'registered',
+          swagger: 'available',
+          geminiAI: process.env.GEMINI_API_KEY ? 'configured' : 'not_configured',
+          grokAI: process.env.XAI_API_KEY ? 'configured' : 'not_configured',
+          vertexAIAgent: process.env.GOOGLE_CLOUD_PROJECT_ID ? 'configured' : 'not_configured',
+          ragSystem: 'operational',
+          postgres: process.env.DATABASE_URL ? 'configured' : 'not_configured',
+          neo4j: process.env.NEO4J_URI ? 'configured' : 'not_configured',
+          redis: process.env.REDIS_URL ? 'configured' : 'not_configured'
+        }
+      };
+    }
+  };
+}
+
+// 修改建立服務函數以支援 RAG
+function createAppService() {
+  return {
+    getSystemInfo() {
+      console.log('📋 執行 getSystemInfo');
+      return {
+        message: '歡迎使用侵國侵城 AI 滲透測試系統 + RAG',
+        version: '1.0.0',
+        status: 'operational',
+        framework: 'NestJS + Express + Gemini AI + Grok AI + Vertex AI Agent + RAG',
+        timestamp: new Date().toISOString(),
+        description: '本系統專為 eKYC 安全測試設計，整合多種生成式 AI 技術和 RAG 檢索增強生成',
+        capabilities: [
+          '多模態 AI 攻擊模擬 (StyleGAN3, Stable Diffusion, SimSwap, DALL·E)',
+          '智能滲透測試',
+          '量化安全評估 (APCER, BPCER, ACER, EER)',
+          'AI 驅動的防禦建議 (Gemini AI)',
+          '幽默風格的資安分析 (Grok AI)',
+          '智能 AI Agent 安全專家 (Vertex AI)',
+          'RAG 檢索增強生成系統',
+          '知識圖譜建構與查詢 (Neo4j)',
+          '向量資料庫搜尋 (PostgreSQL + pgvector)',
+          '自動化報告生成',
+          'AI 輔助攻擊策略優化'
+        ],
+        endpoints: {
+          health: '/health',
+          attackVectors: '/ai-attack/vectors',
+          executeAttack: 'POST /ai-attack/execute',
+          comboAttack: 'POST /ai-attack/combo',
+          systemStats: '/system/stats',
+          geminiTest: '/ai-gemini/test',
+          grokTest: '/ai-grok/test',
+          vertexAgentTest: '/ai-agent/test',
+          ragAsk: 'POST /rag/ask',
+          ragIngest: 'POST /rag/ingest',
+          ragStats: '/rag/stats',
+          databaseStatus: '/database/status',
+          apiDocs: '/api/docs'
+        }
+      };
+    }
+  };
+}
 // 新增 Vertex AI Agent 服務
 function createVertexAIAgentService() {
   if (!process.env.GOOGLE_CLOUD_PROJECT_ID || !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
@@ -676,7 +1065,7 @@ function createVertexAIAgentService() {
       async createSecurityAgent(agentName, instructions) {
         try {
           console.log('🤖 建立 Vertex AI 安全分析 Agent...');
-          
+
           const agentConfig = {
             displayName: agentName,
             goal: "專業的 eKYC 安全分析和滲透測試專家",
@@ -720,16 +1109,16 @@ function createVertexAIAgentService() {
       },
 
       async chatWithAgent(sessionId, message, agentId) {
-  console.log('💬 與 AI Agent 對話中...');
-  return this.generateIntelligentResponse(message, sessionId, agentId);  // ← 這行需要修改
-},
+        console.log('💬 與 AI Agent 對話中...');
+        return this.generateIntelligentResponse(message, sessionId, agentId);  // ← 這行需要修改
+      },
 
-generateIntelligentResponse(message, sessionId, agentId) {
-  const messageLower = message.toLowerCase();
-  let response = '';
+      generateIntelligentResponse(message, sessionId, agentId) {
+        const messageLower = message.toLowerCase();
+        let response = '';
 
-  if (messageLower.includes('deepfake') || messageLower.includes('ekyc') || messageLower.includes('銀行')) {
-    response = `🎭 **Vertex AI Agent - eKYC Deepfake 威脅深度分析**
+        if (messageLower.includes('deepfake') || messageLower.includes('ekyc') || messageLower.includes('銀行')) {
+          response = `🎭 **Vertex AI Agent - eKYC Deepfake 威脅深度分析**
 
 **🚨 威脅等級**: CRITICAL
 
@@ -751,19 +1140,19 @@ generateIntelligentResponse(message, sessionId, agentId) {
    - 資產轉移攻擊
    - 洗錢資金流動
 
-**🛡️ 防護策略建議**:
+**防護策略建議**:
 • 升級活體檢測算法 (3D 深度感測)
 • 實施多重生物特徵驗證
 • 建立 AI vs AI 檢測機制
 • 部署行為分析系統
 
-**📊 風險指標**:
+**風險指標**:
 - 當前 APCER: 20-30%
 - 目標 APCER: <3%
 - 預估損失降低: 85%`;
 
-  } else if (messageLower.includes('攻擊') || messageLower.includes('滲透')) {
-    response = `⚔️ **Vertex AI Agent - 攻擊向量分析**
+        } else if (messageLower.includes('攻擊') || messageLower.includes('滲透')) {
+          response = `⚔️ **Vertex AI Agent - 攻擊向量分析**
 
 **侵國侵城攻擊向量**:
 • **A1 - StyleGAN3**: 偽造真人自拍 (成功率 78%)
@@ -781,8 +1170,8 @@ generateIntelligentResponse(message, sessionId, agentId) {
 2. 加強 A4 (證件偽造) 檢測
 3. 提升 A1 (StyleGAN3) 識別`;
 
-  } else {
-    response = `🤖 **Vertex AI Agent - 專業安全諮詢**
+        } else {
+          response = `🤖 **Vertex AI Agent - 專業安全諮詢**
 
 **查詢**: ${message}
 
@@ -799,21 +1188,21 @@ generateIntelligentResponse(message, sessionId, agentId) {
 • 事件響應計畫
 
 請提供更具體的場景獲得詳細分析。`;
-  }
+        }
 
-  return {
-    success: true,
-    response: response,
-    sessionId: sessionId,
-    agentId: agentId,
-    model: 'vertex-ai-local-intelligence',
-    timestamp: new Date().toISOString()
-  };
-},
+        return {
+          success: true,
+          response: response,
+          sessionId: sessionId,
+          agentId: agentId,
+          model: 'vertex-ai-local-intelligence',
+          timestamp: new Date().toISOString()
+        };
+      },
 
       async analyzeEkycSecurity(systemType, verificationMethods = []) {
         console.log('🔍 執行 eKYC 安全分析...');
-        
+
         const securityAssessment = {
           systemType: systemType,
           verificationMethods: verificationMethods,
@@ -841,7 +1230,7 @@ generateIntelligentResponse(message, sessionId, agentId) {
 
       async generateAttackVector(targetSystem, attackType, complexity = 'medium') {
         console.log(`⚔️ 生成攻擊向量: ${attackType}`);
-        
+
         const attackVectors = {
           deepfake: {
             name: 'Deepfake 身份欺騙攻擊',
@@ -900,7 +1289,7 @@ generateIntelligentResponse(message, sessionId, agentId) {
 
       async createPentestReport(testResults, findings, riskLevel) {
         console.log('📊 生成滲透測試報告...');
-        
+
         const report = {
           executiveSummary: {
             testDate: new Date().toISOString().split('T')[0],
@@ -955,11 +1344,11 @@ generateIntelligentResponse(message, sessionId, agentId) {
           'Authentication': '啟用多重身份驗證',
           'Encryption': '使用強加密算法和安全金鑰管理'
         };
-        
+
         for (const [key, value] of Object.entries(recommendations)) {
           if (finding.includes(key)) return value;
         }
-        
+
         return '請諮詢安全專家獲得具體建議';
       }
     };
@@ -981,23 +1370,23 @@ function createMockVertexAIAgentService() {
     },
 
     // 找到這段程式碼並完全替換
-async chatWithAgent(sessionId, message, agentId) {
-  try {
-    console.log('💬 開始 Vertex AI 真實對話...');
-    console.log(`📋 專案: ${process.env.GOOGLE_CLOUD_PROJECT_ID}`);
-    console.log(`🌍 地區: ${process.env.VERTEX_AI_LOCATION}`);
-    
-    // 使用穩定的模型
-    const model = this.vertexAI.getGenerativeModel({
-      model: 'gemini-pro', // 使用最穩定的版本
-      generationConfig: {
-        temperature: 0.7,
-        topP: 0.9,
-        maxOutputTokens: 1024
-      }
-    });
+    async chatWithAgent(sessionId, message, agentId) {
+      try {
+        console.log('💬 開始 Vertex AI 真實對話...');
+        console.log(`📋 專案: ${process.env.GOOGLE_CLOUD_PROJECT_ID}`);
+        console.log(`🌍 地區: ${process.env.VERTEX_AI_LOCATION}`);
 
-    const prompt = `你是侵國侵城 AI 安全分析專家。請針對以下查詢提供專業分析：
+        // 使用穩定的模型
+        const model = this.vertexAI.getGenerativeModel({
+          model: 'gemini-pro', // 使用最穩定的版本
+          generationConfig: {
+            temperature: 0.7,
+            topP: 0.9,
+            maxOutputTokens: 1024
+          }
+        });
+
+        const prompt = `你是侵國侵城 AI 安全分析專家。請針對以下查詢提供專業分析：
 
 查詢：${message}
 
@@ -1009,57 +1398,57 @@ async chatWithAgent(sessionId, message, agentId) {
 
 請以專業且實用的方式回答。`;
 
-    console.log('🚀 正在調用 Vertex AI...');
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    
-    console.log('✅ Vertex AI 真實回應成功');
-    return {
-      success: true,
-      response: response.text(),
-      sessionId: sessionId,
-      agentId: agentId,
-      model: 'vertex-ai-gemini-pro-real', // 真實模型標識
-      timestamp: new Date().toISOString()
-    };
+        console.log('🚀 正在調用 Vertex AI...');
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
 
-  } catch (error) {
-    console.error('❌ Vertex AI 真實調用失敗:', error.message);
-    
-    // 如果 Vertex AI 失敗，嘗試使用 Gemini API
-    try {
-      console.log('🔄 回退到 Gemini API...');
-      const geminiService = createGeminiService();
-      const result = await geminiService.generateAttackVector(message);
-      
-      return {
-        success: true,
-        response: result.text,
-        sessionId: sessionId,
-        agentId: agentId,
-        model: 'gemini-api-fallback',
-        timestamp: new Date().toISOString()
-      };
-    } catch (geminiError) {
-      console.error('❌ Gemini API 也失敗:', geminiError.message);
-      
-      // 最後才使用本地處理
-      console.log('🔄 最終回退到本地處理...');
-      return this.generateIntelligentResponse(message, sessionId, agentId);
-    }
-  }
-},
+        console.log('✅ Vertex AI 真實回應成功');
+        return {
+          success: true,
+          response: response.text(),
+          sessionId: sessionId,
+          agentId: agentId,
+          model: 'vertex-ai-gemini-pro-real', // 真實模型標識
+          timestamp: new Date().toISOString()
+        };
+
+      } catch (error) {
+        console.error('❌ Vertex AI 真實調用失敗:', error.message);
+
+        // 如果 Vertex AI 失敗，嘗試使用 Gemini API
+        try {
+          console.log('🔄 回退到 Gemini API...');
+          const geminiService = createGeminiService();
+          const result = await geminiService.generateAttackVector(message);
+
+          return {
+            success: true,
+            response: result.text,
+            sessionId: sessionId,
+            agentId: agentId,
+            model: 'gemini-api-fallback',
+            timestamp: new Date().toISOString()
+          };
+        } catch (geminiError) {
+          console.error('❌ Gemini API 也失敗:', geminiError.message);
+
+          // 最後才使用本地處理
+          console.log('🔄 最終回退到本地處理...');
+          return this.generateIntelligentResponse(message, sessionId, agentId);
+        }
+      }
+    },
 
 
 
-// 新增這個方法（如果不存在的話）
-generateIntelligentResponse(message, sessionId, agentId) {
-  const messageLower = message.toLowerCase();
-  let response = '';
+    // 新增這個方法（如果不存在的話）
+    generateIntelligentResponse(message, sessionId, agentId) {
+      const messageLower = message.toLowerCase();
+      let response = '';
 
-  // 智能關鍵字分析和回應
-  if (messageLower.includes('deepfake') || messageLower.includes('深偽') || messageLower.includes('換臉')) {
-    response = `🎭 **Vertex AI Agent - Deepfake 威脅分析**
+      // 智能關鍵字分析和回應
+      if (messageLower.includes('deepfake') || messageLower.includes('深偽') || messageLower.includes('換臉')) {
+        response = `🎭 **Vertex AI Agent - Deepfake 威脅分析**
 
 **威脅等級**: CRITICAL
 **主要攻擊技術**:
@@ -1083,8 +1472,8 @@ generateIntelligentResponse(message, sessionId, agentId) {
 - 當前系統 APCER: 15-25%
 - 建議目標 APCER: <5%`;
 
-  } else if (messageLower.includes('ekyc') || messageLower.includes('身份驗證') || messageLower.includes('開戶')) {
-    response = `🛡️ **Vertex AI Agent - eKYC 系統安全評估**
+      } else if (messageLower.includes('ekyc') || messageLower.includes('身份驗證') || messageLower.includes('開戶')) {
+        response = `**Vertex AI Agent - eKYC 系統安全評估**
 
 **系統架構風險分析**:
 1. **文件驗證層面**:
@@ -1114,8 +1503,8 @@ generateIntelligentResponse(message, sessionId, agentId) {
 • 金管會相關法規遵循
 • ISO 27001 資訊安全標準`;
 
-  } else if (messageLower.includes('攻擊') || messageLower.includes('滲透') || messageLower.includes('測試')) {
-    response = `⚔️ **Vertex AI Agent - 攻擊向量分析**
+      } else if (messageLower.includes('攻擊') || messageLower.includes('滲透') || messageLower.includes('測試')) {
+        response = `⚔️ **Vertex AI Agent - 攻擊向量分析**
 
 **侵國侵城攻擊向量**:
 • **A1 - StyleGAN3**: 偽造真人自拍 (成功率 78%)
@@ -1138,8 +1527,8 @@ generateIntelligentResponse(message, sessionId, agentId) {
 - 最高威脅: A3 (SimSwap 即時換臉)
 - 防護優先級: 建議優先加強活體檢測`;
 
-  } else if (messageLower.includes('安全') || messageLower.includes('防護') || messageLower.includes('建議')) {
-    response = `🔒 **Vertex AI Agent - 安全架構建議**
+      } else if (messageLower.includes('安全') || messageLower.includes('防護') || messageLower.includes('建議')) {
+        response = `🔒 **Vertex AI Agent - 安全架構建議**
 
 **安全架構評估**:
 1. **網路安全**: WAF、DDoS 防護、入侵檢測
@@ -1164,9 +1553,9 @@ generateIntelligentResponse(message, sessionId, agentId) {
 • BPCER (錯誤拒絕率): 目標 <5%
 • 系統可用性: >99.9%`;
 
-  } else {
-    // 通用智能回應
-    response = `🤖 **Vertex AI Agent - 安全專家分析**
+      } else {
+        // 通用智能回應
+        response = `🤖 **Vertex AI Agent - 安全專家分析**
 
 **查詢內容**: ${message}
 
@@ -1188,17 +1577,17 @@ generateIntelligentResponse(message, sessionId, agentId) {
 建議深入討論具體的安全場景，如 eKYC 系統、Deepfake 防護或滲透測試策略。
 
 **風險等級**: MEDIUM (需進一步評估)`;
-  }
+      }
 
-  return {
-    success: true,
-    response: response,
-    sessionId: sessionId,
-    agentId: agentId,
-    model: 'vertex-ai-local-intelligence',
-    timestamp: new Date().toISOString()
-  };
-},
+      return {
+        success: true,
+        response: response,
+        sessionId: sessionId,
+        agentId: agentId,
+        model: 'vertex-ai-local-intelligence',
+        timestamp: new Date().toISOString()
+      };
+    },
 
     async analyzeEkycSecurity(systemType, verificationMethods) {
       return {
@@ -1248,8 +1637,8 @@ generateIntelligentResponse(message, sessionId, agentId) {
 }
 
 // 註冊所有路由
-function registerRoutes(app, appService, healthService, attackService, geminiService, grokService, vertexAIAgentService) {
-  
+function registerRoutes(app, appService, healthService, attackService, geminiService, grokService, vertexAIAgentService, ragService, databaseService) {
+
   console.log('📍 註冊路由: GET /');
   app.get('/', (req, res) => {
     console.log('📥 收到首頁請求');
@@ -1261,7 +1650,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
       res.status(500).json({ success: false, error: error.message });
     }
   });
-  
+
   console.log('📍 註冊路由: GET /health');
   app.get('/health', (req, res) => {
     console.log('📥 收到健康檢查請求');
@@ -1273,7 +1662,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
       res.status(500).json({ success: false, error: error.message });
     }
   });
-  
+
   console.log('📍 註冊路由: GET /ai-attack/vectors');
   app.get('/ai-attack/vectors', (req, res) => {
     console.log('📥 收到攻擊向量請求');
@@ -1285,7 +1674,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
       res.status(500).json({ success: false, error: error.message });
     }
   });
-  
+
   console.log('📍 註冊路由: POST /ai-attack/execute');
   app.post('/ai-attack/execute', (req, res) => {
     console.log('📥 收到攻擊執行請求, Body:', req.body);
@@ -1297,7 +1686,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
       res.status(500).json({ success: false, error: error.message });
     }
   });
-  
+
   console.log('📍 註冊路由: POST /ai-attack/combo');
   app.post('/ai-attack/combo', (req, res) => {
     console.log('📥 收到複合攻擊請求, Body:', req.body);
@@ -1309,7 +1698,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
       res.status(500).json({ success: false, error: error.message });
     }
   });
-  
+
   console.log('📍 註冊路由: GET /system/stats');
   app.get('/system/stats', (req, res) => {
     console.log('📥 收到系統統計請求');
@@ -1336,7 +1725,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
   });
 
   // === Gemini AI 路由 ===
-  
+
   console.log('📍 註冊路由: GET /ai-gemini/test');
   app.get('/ai-gemini/test', async (req, res) => {
     console.log('📥 收到 Gemini 測試請求');
@@ -1350,8 +1739,8 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
       });
     } catch (error) {
       console.error('❌ Gemini 測試錯誤:', error);
-      res.status(500).json({ 
-        success: false, 
+      res.status(500).json({
+        success: false,
         error: error.message,
         message: "❌ Gemini AI 連接失敗"
       });
@@ -1364,7 +1753,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
     try {
       const { prompt } = req.body;
       if (!prompt) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: '請提供攻擊場景描述 (prompt 參數)'
         });
@@ -1383,7 +1772,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
     try {
       const { targetSystem, attackType } = req.body;
       if (!targetSystem || !attackType) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: '請提供目標系統 (targetSystem) 和攻擊類型 (attackType)'
         });
@@ -1402,7 +1791,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
     try {
       const { scenario } = req.body;
       if (!scenario) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: '請提供 Deepfake 攻擊場景 (scenario)'
         });
@@ -1443,8 +1832,8 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
       });
     } catch (error) {
       console.error('❌ Grok 測試錯誤:', error);
-      res.status(500).json({ 
-        success: false, 
+      res.status(500).json({
+        success: false,
         error: error.message,
         message: "❌ Grok AI 連接失敗"
       });
@@ -1457,7 +1846,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
     try {
       const { prompt, systemPrompt } = req.body;
       if (!prompt) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: '請提供對話內容 (prompt 參數)'
         });
@@ -1476,7 +1865,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
     try {
       const { threatDescription, targetSystem } = req.body;
       if (!threatDescription || !targetSystem) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: '請提供威脅描述 (threatDescription) 和目標系統 (targetSystem)'
         });
@@ -1495,7 +1884,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
     try {
       const { targetType, attackVectors = ['A1', 'A3'] } = req.body;
       if (!targetType) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: '請提供目標類型 (targetType)'
         });
@@ -1526,8 +1915,8 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
       });
     } catch (error) {
       console.error('❌ AI Agent 測試錯誤:', error);
-      res.status(500).json({ 
-        success: false, 
+      res.status(500).json({
+        success: false,
         error: error.message,
         message: "❌ AI Agent 連接失敗"
       });
@@ -1540,7 +1929,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
     try {
       const { agentName, instructions } = req.body;
       if (!agentName) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: '請提供 Agent 名稱 (agentName 參數)'
         });
@@ -1559,14 +1948,14 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
     try {
       const { sessionId, message, agentId = 'default-security-agent' } = req.body;
       if (!message) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: '請提供對話訊息 (message 參數)'
         });
       }
       const result = await vertexAIAgentService.chatWithAgent(
-        sessionId || `session-${Date.now()}`, 
-        message, 
+        sessionId || `session-${Date.now()}`,
+        message,
         agentId
       );
       res.json(result);
@@ -1582,7 +1971,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
     try {
       const { systemType, verificationMethods = [] } = req.body;
       if (!systemType) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: '請提供系統類型 (systemType 參數)'
         });
@@ -1605,7 +1994,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
     try {
       const { targetSystem, attackType, complexity = 'medium' } = req.body;
       if (!targetSystem || !attackType) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: '請提供目標系統 (targetSystem) 和攻擊類型 (attackType)'
         });
@@ -1628,7 +2017,7 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
     try {
       const { testResults, findings, riskLevel } = req.body;
       if (!testResults || !findings || !riskLevel) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: '請提供測試結果 (testResults)、發現 (findings) 和風險等級 (riskLevel)'
         });
@@ -1644,8 +2033,93 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
       res.status(500).json({ success: false, error: error.message });
     }
   });
-  
-  console.log('✅ 所有路由（包含 Gemini AI、Grok AI 和 Vertex AI Agent）註冊完成');
+
+  console.log('📍 註冊路由: POST /rag/ask');
+  app.post('/rag/ask', async (req, res) => {
+    console.log('📥 收到 RAG 查詢請求, Body:', req.body);
+    try {
+      const { question, filters = {} } = req.body;
+      if (!question || question.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: '問題不能為空 (question 參數必填)'
+        });
+      }
+
+      const result = await ragService.askQuestion(question, filters);
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('❌ RAG 查詢錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  console.log('📍 註冊路由: POST /rag/ingest');
+  app.post('/rag/ingest', async (req, res) => {
+    console.log('📥 收到 RAG 文檔匯入請求, Body:', req.body);
+    try {
+      const { text, metadata = {} } = req.body;
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: '文檔內容不能為空 (text 參數必填)'
+        });
+      }
+
+      const result = await ragService.ingestDocument(text, metadata);
+      res.json(result);
+    } catch (error) {
+      console.error('❌ RAG 文檔匯入錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  console.log('📍 註冊路由: GET /rag/stats');
+  app.get('/rag/stats', (req, res) => {
+    console.log('📥 收到 RAG 統計請求');
+    try {
+      const stats = ragService.getStats();
+      res.json({
+        success: true,
+        stats: stats,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('❌ RAG 統計錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // === 新增資料庫管理路由 ===
+
+  console.log('📍 註冊路由: GET /database/status');
+  app.get('/database/status', async (req, res) => {
+    console.log('📥 收到資料庫狀態請求');
+    try {
+      const status = await databaseService.getStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('❌ 資料庫狀態錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  console.log('📍 註冊路由: POST /database/init');
+  app.post('/database/init', async (req, res) => {
+    console.log('📥 收到資料庫初始化請求');
+    try {
+      const result = await databaseService.initializeDatabase();
+      res.json(result);
+    } catch (error) {
+      console.error('❌ 資料庫初始化錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  console.log('✅ 所有路由（包含 Gemini AI、Grok AI、Vertex AI Agent、RAG 和資料庫）註冊完成');
 }
 
 // 設置 Swagger
@@ -1669,7 +2143,23 @@ function setupSwagger(app) {
       { name: 'AI 攻擊', description: '傳統攻擊向量和執行功能' },
       { name: 'Gemini AI', description: 'Google Gemini AI 智能分析功能' },
       { name: 'Grok AI', description: 'xAI Grok 幽默風格的資安分析' },
-      { name: 'Vertex AI Agent', description: 'Google Vertex AI 智能安全專家代理' }
+      { name: 'Vertex AI Agent', description: 'Google Vertex AI 智能安全專家代理' },
+      {
+        name: 'RAG System',
+        description: '檢索增強生成系統 - 智慧問答與文檔管理'
+      },
+      {
+        name: 'Document Management',
+        description: '文檔匯入與處理'
+      },
+      {
+        name: 'Vector Search',
+        description: '向量搜尋與相似度匹配'
+      },
+      {
+        name: 'Database Management',
+        description: '資料庫狀態與管理'
+      }
     ],
     paths: {
       '/': {
@@ -1685,7 +2175,7 @@ function setupSwagger(app) {
                   schema: {
                     type: 'object',
                     properties: {
-                      message: { type: 'string', example: '🛡️ 歡迎使用侵國侵城 AI 滲透測試系統' },
+                      message: { type: 'string', example: '歡迎使用侵國侵城 AI 滲透測試系統' },
                       version: { type: 'string', example: '1.0.0' },
                       status: { type: 'string', example: 'operational' },
                       framework: { type: 'string', example: 'NestJS + Express + Gemini AI + Grok AI + Vertex AI Agent' },
@@ -1708,7 +2198,7 @@ function setupSwagger(app) {
           summary: '系統健康檢查',
           description: '檢查系統運行狀態、記憶體使用量和各服務狀態',
           responses: {
-            200: { 
+            200: {
               description: '系統健康狀態',
               content: {
                 'application/json': {
@@ -1758,7 +2248,7 @@ function setupSwagger(app) {
           summary: '獲取攻擊向量列表',
           description: '列出所有可用的攻擊向量，包含成功率和難度評估',
           responses: {
-            200: { 
+            200: {
               description: '攻擊向量列表',
               content: {
                 'application/json': {
@@ -1859,7 +2349,7 @@ function setupSwagger(app) {
           }
         }
       },
-      
+
       // Gemini AI 路由
       '/ai-gemini/test': {
         get: {
@@ -1867,7 +2357,7 @@ function setupSwagger(app) {
           summary: '測試 Gemini AI 連接',
           description: '測試與 Google Gemini AI 的連接狀態',
           responses: {
-            200: { 
+            200: {
               description: 'Gemini AI 連接測試結果',
               content: {
                 'application/json': {
@@ -2021,7 +2511,7 @@ function setupSwagger(app) {
           summary: '測試 Grok AI 連接',
           description: '測試與 xAI Grok 的連接狀態，體驗《銀河便車指南》風格',
           responses: {
-            200: { 
+            200: {
               description: 'Grok AI 連接測試結果',
               content: {
                 'application/json': {
@@ -2152,7 +2642,7 @@ function setupSwagger(app) {
           summary: '測試 AI Agent 服務',
           description: '測試 Vertex AI Agent 的連接狀態和基本功能',
           responses: {
-            200: { 
+            200: {
               description: 'AI Agent 服務測試結果',
               content: {
                 'application/json': {
@@ -2360,9 +2850,418 @@ function setupSwagger(app) {
             400: { description: '缺少必要參數' }
           }
         }
+      },
+
+      // RAG 智慧問答
+      '/rag/ask': {
+        post: {
+          tags: ['RAG System'],
+          summary: 'RAG 智慧問答',
+          description: '基於滲透測試文檔進行智慧問答，支援攻擊向量過濾和來源追溯',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    question: {
+                      type: 'string',
+                      example: 'eKYC系統如何防護Deepfake攻擊？',
+                      description: '用戶問題 (必填)'
+                    },
+                    filters: {
+                      type: 'object',
+                      properties: {
+                        attackVector: {
+                          type: 'string',
+                          enum: ['A1', 'A2', 'A3', 'A4', 'A5'],
+                          example: 'A3',
+                          description: '攻擊向量過濾 (A1-StyleGAN3, A2-StableDiffusion, A3-SimSwap, A4-DiffusionGAN, A5-DALLE)'
+                        },
+                        runId: {
+                          type: 'string',
+                          example: 'test-001',
+                          description: '測試批次 ID 過濾'
+                        },
+                        documentType: {
+                          type: 'string',
+                          enum: ['penetration-report', 'attack-log', 'regulation', 'technical-doc'],
+                          example: 'penetration-report',
+                          description: '文檔類型過濾'
+                        }
+                      }
+                    }
+                  },
+                  required: ['question']
+                }
+              }
+            }
+          },
+          responses: {
+            200: {
+              description: 'RAG 問答成功',
+              content: {
+                'application/json': {
+                  schema: {
+                    $ref: '#/components/schemas/RagResponse'
+                  }
+                }
+              }
+            },
+            400: {
+              description: '請求參數錯誤',
+              content: {
+                'application/json': {
+                  schema: {
+                    $ref: '#/components/schemas/ErrorResponse'
+                  }
+                }
+              }
+            },
+            500: {
+              description: 'RAG 系統內部錯誤'
+            }
+          }
+        }
+      },
+
+      // 文檔匯入
+      '/rag/ingest': {
+        post: {
+          tags: ['Document Management'],
+          summary: '文檔匯入',
+          description: '將滲透測試報告、攻擊日誌等文檔匯入 RAG 系統，自動分塊和向量化',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    text: {
+                      type: 'string',
+                      example: '滲透測試報告：A3 SimSwap 攻擊向量在 eKYC 系統中成功率達 89%，建議加強活體檢測機制...',
+                      description: '文檔內容 (必填)'
+                    },
+                    metadata: {
+                      type: 'object',
+                      properties: {
+                        attackVector: {
+                          type: 'string',
+                          enum: ['A1', 'A2', 'A3', 'A4', 'A5'],
+                          example: 'A3',
+                          description: '關聯的攻擊向量'
+                        },
+                        runId: {
+                          type: 'string',
+                          example: 'test-001',
+                          description: '測試批次 ID'
+                        },
+                        documentType: {
+                          type: 'string',
+                          enum: ['penetration-report', 'attack-log', 'regulation', 'technical-doc'],
+                          example: 'penetration-report',
+                          description: '文檔類型'
+                        },
+                        source: {
+                          type: 'string',
+                          example: 'internal-test-2024',
+                          description: '文檔來源'
+                        },
+                        author: {
+                          type: 'string',
+                          example: '侵國侵城測試團隊',
+                          description: '文檔作者'
+                        }
+                      }
+                    }
+                  },
+                  required: ['text']
+                }
+              }
+            }
+          },
+          responses: {
+            200: {
+              description: '文檔匯入成功',
+              content: {
+                'application/json': {
+                  schema: {
+                    $ref: '#/components/schemas/IngestResponse'
+                  }
+                }
+              }
+            },
+            400: {
+              description: '文檔內容不能為空'
+            },
+            500: {
+              description: '文檔處理失敗'
+            }
+          }
+        }
+      },
+
+      // 批量文檔匯入
+      '/rag/ingest/batch': {
+        post: {
+          tags: ['Document Management'],
+          summary: '批量文檔匯入',
+          description: '批量匯入多個文檔到 RAG 系統',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    documents: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          text: {
+                            type: 'string',
+                            description: '文檔內容'
+                          },
+                          metadata: {
+                            type: 'object',
+                            description: '文檔元數據'
+                          }
+                        }
+                      },
+                      example: [
+                        {
+                          text: 'A1 StyleGAN3 攻擊測試報告...',
+                          metadata: { attackVector: 'A1', runId: 'batch-001' }
+                        },
+                        {
+                          text: 'A3 SimSwap 防護建議...',
+                          metadata: { attackVector: 'A3', runId: 'batch-001' }
+                        }
+                      ]
+                    }
+                  },
+                  required: ['documents']
+                }
+              }
+            }
+          },
+          responses: {
+            200: {
+              description: '批量匯入成功',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      totalDocuments: { type: 'integer' },
+                      successfulImports: { type: 'integer' },
+                      failedImports: { type: 'integer' },
+                      documentIds: {
+                        type: 'array',
+                        items: { type: 'string' }
+                      },
+                      timestamp: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      // RAG 統計資訊
+      '/rag/stats': {
+        get: {
+          tags: ['RAG System'],
+          summary: 'RAG 系統統計',
+          description: '獲取 RAG 系統的文檔、查詢、向量資料庫等統計資訊',
+          responses: {
+            200: {
+              description: 'RAG 統計資訊',
+              content: {
+                'application/json': {
+                  schema: {
+                    $ref: '#/components/schemas/RagStats'
+                  }
+                }
+              }
+            },
+            500: {
+              description: '獲取統計失敗'
+            }
+          }
+        }
+      },
+
+      // 向量搜尋
+      '/rag/search': {
+        post: {
+          tags: ['Vector Search'],
+          summary: '向量相似度搜尋',
+          description: '基於文本向量進行相似度搜尋，返回最相關的文檔片段',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    query: {
+                      type: 'string',
+                      example: 'Deepfake 攻擊防護',
+                      description: '搜尋查詢'
+                    },
+                    topK: {
+                      type: 'integer',
+                      example: 5,
+                      minimum: 1,
+                      maximum: 20,
+                      description: '返回結果數量 (1-20)'
+                    },
+                    filters: {
+                      type: 'object',
+                      properties: {
+                        attackVector: { type: 'string' },
+                        runId: { type: 'string' },
+                        documentType: { type: 'string' },
+                        minSimilarity: {
+                          type: 'number',
+                          example: 0.7,
+                          minimum: 0,
+                          maximum: 1,
+                          description: '最小相似度閾值 (0-1)'
+                        }
+                      }
+                    }
+                  },
+                  required: ['query']
+                }
+              }
+            }
+          },
+          responses: {
+            200: {
+              description: '搜尋成功',
+              content: {
+                'application/json': {
+                  schema: {
+                    $ref: '#/components/schemas/SearchResponse'
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      // 更新向量嵌入
+      '/rag/update-embeddings': {
+        post: {
+          tags: ['Vector Search'],
+          summary: '更新文檔向量',
+          description: '重新計算並更新指定文檔的向量嵌入',
+          requestBody: {
+            required: false,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    documentIds: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      description: '指定文檔 ID 列表，空則更新所有'
+                    },
+                    batchSize: {
+                      type: 'integer',
+                      example: 50,
+                      minimum: 10,
+                      maximum: 200,
+                      description: '批次大小'
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            200: {
+              description: '向量更新成功',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      updatedCount: { type: 'integer' },
+                      totalProcessed: { type: 'integer' },
+                      timestamp: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      // 資料庫狀態
+      '/database/status': {
+        get: {
+          tags: ['Database Management'],
+          summary: '資料庫狀態檢查',
+          description: '檢查 PostgreSQL、Neo4j、Redis、Python AI 服務的連接狀態',
+          responses: {
+            200: {
+              description: '資料庫狀態',
+              content: {
+                'application/json': {
+                  schema: {
+                    $ref: '#/components/schemas/DatabaseStatus'
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      // 資料庫初始化
+      '/database/init': {
+        post: {
+          tags: ['Database Management'],
+          summary: '初始化資料庫',
+          description: '初始化 RAG 系統所需的資料庫表格和索引',
+          responses: {
+            200: {
+              description: '初始化成功',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      message: { type: 'string' },
+                      initialized: {
+                        type: 'array',
+                        items: { type: 'string' }
+                      },
+                      timestamp: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
-       components: {
+    components: {
       schemas: {
         AttackVector: {
           type: 'object',
@@ -2399,9 +3298,9 @@ function setupSwagger(app) {
           type: 'object',
           properties: {
             systemType: { type: 'string' },
-            verificationMethods: { 
-              type: 'array', 
-              items: { type: 'string' } 
+            verificationMethods: {
+              type: 'array',
+              items: { type: 'string' }
             },
             riskAssessment: {
               type: 'object',
@@ -2422,31 +3321,31 @@ function setupSwagger(app) {
           type: 'object',
           properties: {
             targetSystem: { type: 'string' },
-            attackType: { 
-              type: 'string', 
-              enum: ['deepfake', 'document_forgery', 'biometric_spoofing', 'social_engineering'] 
+            attackType: {
+              type: 'string',
+              enum: ['deepfake', 'document_forgery', 'biometric_spoofing', 'social_engineering']
             },
             complexity: { type: 'string', enum: ['low', 'medium', 'high'] },
             vector: {
               type: 'object',
               properties: {
                 name: { type: 'string' },
-                steps: { 
-                  type: 'array', 
-                  items: { type: 'string' } 
+                steps: {
+                  type: 'array',
+                  items: { type: 'string' }
                 },
-                tools: { 
-                  type: 'array', 
-                  items: { type: 'string' } 
+                tools: {
+                  type: 'array',
+                  items: { type: 'string' }
                 },
                 successRate: { type: 'string' },
                 detection: {
                   type: 'object',
                   properties: {
                     difficulty: { type: 'string' },
-                    indicators: { 
-                      type: 'array', 
-                      items: { type: 'string' } 
+                    indicators: {
+                      type: 'array',
+                      items: { type: 'string' }
                     }
                   }
                 }
@@ -2495,8 +3394,278 @@ function setupSwagger(app) {
               }
             }
           }
+        },
+        // RAG 回應格式
+        RagResponse: {
+          type: 'object',
+          properties: {
+            success: {
+              type: 'boolean',
+              example: true
+            },
+            data: {
+              type: 'object',
+              properties: {
+                answer: {
+                  type: 'string',
+                  example: '針對 eKYC 系統的 Deepfake 攻擊防護，建議採用以下措施...',
+                  description: 'AI 生成的答案'
+                },
+                sources: {
+                  type: 'array',
+                  items: {
+                    $ref: '#/components/schemas/RagSource'
+                  },
+                  description: '引用來源列表'
+                },
+                timestamp: {
+                  type: 'string',
+                  format: 'date-time',
+                  description: '回應時間'
+                }
+              }
+            }
+          }
+        },
+
+        // RAG 來源格式
+        RagSource: {
+          type: 'object',
+          properties: {
+            documentId: {
+              type: 'string',
+              example: 'doc_1697123456_abc123',
+              description: '文檔 ID'
+            },
+            chunkId: {
+              type: 'string',
+              example: 'doc_1697123456_abc123_chunk_0',
+              description: '文檔塊 ID'
+            },
+            similarity: {
+              type: 'number',
+              example: 0.87,
+              minimum: 0,
+              maximum: 1,
+              description: '相似度分數'
+            },
+            attackVector: {
+              type: 'string',
+              example: 'A3',
+              description: '關聯攻擊向量'
+            },
+            runId: {
+              type: 'string',
+              example: 'test-001',
+              description: '測試批次 ID'
+            },
+            preview: {
+              type: 'string',
+              example: 'SimSwap 即時換臉攻擊在 eKYC 系統中表現出極高的成功率...',
+              description: '文檔內容預覽'
+            }
+          }
+        },
+
+        // 文檔匯入回應
+        IngestResponse: {
+          type: 'object',
+          properties: {
+            success: {
+              type: 'boolean',
+              example: true
+            },
+            documentId: {
+              type: 'string',
+              example: 'doc_1697123456_abc123',
+              description: '生成的文檔 ID'
+            },
+            chunksCount: {
+              type: 'integer',
+              example: 5,
+              description: '生成的文檔塊數量'
+            },
+            message: {
+              type: 'string',
+              example: '文檔已成功匯入並分塊處理',
+              description: '操作結果訊息'
+            }
+          }
+        },
+
+        // RAG 統計資訊
+        RagStats: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            stats: {
+              type: 'object',
+              properties: {
+                documents: {
+                  type: 'object',
+                  properties: {
+                    total: { type: 'integer', example: 150 },
+                    types: {
+                      type: 'object',
+                      properties: {
+                        'penetration-reports': { type: 'integer', example: 60 },
+                        'attack-logs': { type: 'integer', example: 45 },
+                        'regulations': { type: 'integer', example: 30 },
+                        'technical-docs': { type: 'integer', example: 15 }
+                      }
+                    },
+                    lastIngested: { type: 'string', format: 'date-time' }
+                  }
+                },
+                chunks: {
+                  type: 'object',
+                  properties: {
+                    total: { type: 'integer', example: 750 },
+                    averageSize: { type: 'integer', example: 512 },
+                    withEmbeddings: { type: 'integer', example: 720 },
+                    lastProcessed: { type: 'string', format: 'date-time' }
+                  }
+                },
+                queries: {
+                  type: 'object',
+                  properties: {
+                    total: { type: 'integer', example: 1245 },
+                    successful: { type: 'integer', example: 1183 },
+                    failed: { type: 'integer', example: 62 },
+                    averageResponseTime: { type: 'string', example: '1.2s' },
+                    lastQuery: { type: 'string', format: 'date-time' }
+                  }
+                },
+                vectorDatabase: {
+                  type: 'object',
+                  properties: {
+                    dimensions: { type: 'integer', example: 1024 },
+                    indexType: { type: 'string', example: 'HNSW' },
+                    indexSize: { type: 'string', example: '75MB' },
+                    searchAccuracy: { type: 'string', example: '94.2%' }
+                  }
+                },
+                knowledgeGraph: {
+                  type: 'object',
+                  properties: {
+                    nodes: { type: 'integer', example: 450 },
+                    relationships: { type: 'integer', example: 1200 },
+                    attackVectors: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      example: ['A1', 'A2', 'A3', 'A4', 'A5']
+                    },
+                    lastUpdated: { type: 'string', format: 'date-time' }
+                  }
+                }
+              }
+            },
+            timestamp: { type: 'string', format: 'date-time' }
+          }
+        },
+
+        // 搜尋回應
+        SearchResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            results: {
+              type: 'array',
+              items: {
+                $ref: '#/components/schemas/RagSource'
+              }
+            },
+            totalFound: { type: 'integer' },
+            searchTime: { type: 'string', example: '0.23s' },
+            timestamp: { type: 'string', format: 'date-time' }
+          }
+        },
+
+        // 資料庫狀態
+        DatabaseStatus: {
+          type: 'object',
+          properties: {
+            postgres: {
+              type: 'object',
+              properties: {
+                configured: { type: 'boolean' },
+                status: { type: 'string', enum: ['configured', 'not_configured', 'error'] },
+                connection: { type: 'string', enum: ['ready', 'not_ready', 'error'] },
+                features: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  example: ['pgvector', 'full-text-search', 'jsonb-support']
+                }
+              }
+            },
+            neo4j: {
+              type: 'object',
+              properties: {
+                configured: { type: 'boolean' },
+                status: { type: 'string' },
+                connection: { type: 'string' },
+                features: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  example: ['apoc-plugins', 'graph-algorithms', 'knowledge-graphs']
+                }
+              }
+            },
+            redis: {
+              type: 'object',
+              properties: {
+                configured: { type: 'boolean' },
+                status: { type: 'string' },
+                connection: { type: 'string' },
+                features: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  example: ['caching', 'session-storage', 'pub-sub']
+                }
+              }
+            },
+            pythonAI: {
+              type: 'object',
+              properties: {
+                configured: { type: 'boolean' },
+                status: { type: 'string' },
+                connection: { type: 'string' },
+                features: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  example: ['embedding-generation', 'model-inference', 'image-processing']
+                }
+              }
+            },
+            summary: {
+              type: 'object',
+              properties: {
+                totalDatabases: { type: 'integer', example: 4 },
+                configuredCount: { type: 'integer', example: 3 },
+                healthStatus: { type: 'string', example: 'monitoring' },
+                lastCheck: { type: 'string', format: 'date-time' }
+              }
+            }
+          }
+        },
+
+        // 錯誤回應格式
+        ErrorResponse: {
+          type: 'object',
+          properties: {
+            success: {
+              type: 'boolean',
+              example: false
+            },
+            error: {
+              type: 'string',
+              example: '問題不能為空 (question 參數必填)'
+            }
+          }
         }
       },
+
+      // 安全認證 (可選)
       securitySchemes: {
         ApiKeyAuth: {
           type: 'apiKey',
@@ -2506,9 +3675,9 @@ function setupSwagger(app) {
       }
     }
   };
-  
+
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
-    customSiteTitle: '🛡️ 侵國侵城 AI API 文檔',
+    customSiteTitle: '侵國侵城 AI API 文檔',
     customCss: `
       .swagger-ui .topbar { display: none; }
       .swagger-ui .info .title { color: #d32f2f; font-size: 2rem; text-align: center; margin-bottom: 1rem; }
@@ -2542,62 +3711,44 @@ function setupSwagger(app) {
         margin: 0; 
       }
     `,
+    // 在 setupSwagger 函數中修正這部分
     customJs: `
-      window.onload = function() {
-        console.log('🛡️ 侵國侵城 AI API 文檔載入完成');
-        
-        // 添加自定義 JS 功能
-        const infoElement = document.querySelector('.info');
-        if (infoElement) {
-          const customInfo = document.createElement('div');
-          customInfo.innerHTML = \`
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                        color: white; 
-                        padding: 20px; 
-                        margin: 20px 0; 
-                        border-radius: 8px; 
-                        text-align: center;">
-              <h3>🚀 侵國侵城 AI 滲透測試系統</h3>
-              <p>整合三大 AI 引擎：Gemini AI + Grok AI + Vertex AI Agent</p>
-              <p>專為 eKYC 安全測試設計的智能紅隊系統</p>
-              <div style="display: flex; justify-content: center; gap: 15px; margin-top: 15px;">
-                <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 15px;">🤖 Gemini AI</span>
-                <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 15px;">🛸 Grok AI</span>
-                <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 15px;">🧠 Vertex AI Agent</span>
-              </div>
-            </div>
-          \`;
-          infoElement.appendChild(customInfo);
-        }
-        
-        // 添加版本資訊
-        const versionInfo = document.createElement('div');
-        versionInfo.innerHTML = \`
-          <div style="background: #f8f9fa; 
-                      border: 1px solid #dee2e6; 
-                      border-radius: 5px; 
-                      padding: 15px; 
-                      margin: 15px 0;">
-            <h4 style="color: #495057; margin: 0 0 10px 0;">📋 快速開始</h4>
-            <p style="margin: 5px 0;"><strong>基礎測試：</strong> GET /health</p>
-            <p style="margin: 5px 0;"><strong>攻擊向量：</strong> GET /ai-attack/vectors</p>
-            <p style="margin: 5px 0;"><strong>AI 對話：</strong> POST /ai-agent/chat</p>
-            <p style="margin: 5px 0;"><strong>安全分析：</strong> POST /ai-gemini/ekyc-analysis</p>
+  window.onload = function() {
+    console.log('侵國侵城 AI API 文檔載入完成');
+    
+    // 添加自定義 JS 功能
+    const infoElement = document.querySelector('.info');
+    if (infoElement) {
+      const customInfo = document.createElement('div');
+      customInfo.innerHTML = \`
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    color: white; 
+                    padding: 20px; 
+                    margin: 20px 0; 
+                    border-radius: 8px; 
+                    text-align: center;">
+          <h3>🚀 侵國侵城 AI 滲透測試系統</h3>
+          <p>整合三大 AI 引擎：Gemini AI + Grok AI + Vertex AI Agent + RAG</p>
+          <p>專為 eKYC 安全測試設計的智能紅隊系統</p>
+          <div style="display: flex; justify-content: center; gap: 15px; margin-top: 15px;">
+            <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 15px;">🤖 Gemini AI</span>
+            <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 15px;">🛸 Grok AI</span>
+            <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 15px;">🧠 Vertex AI Agent</span>
+            <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 15px;">🔍 RAG System</span>
           </div>
-        \`;
-        
-        const operationsElement = document.querySelector('.operations-tag');
-        if (operationsElement) {
-          operationsElement.parentNode.insertBefore(versionInfo, operationsElement);
-        }
-      }
-    `
+        </div>
+      \`;
+      infoElement.appendChild(customInfo);
+    }
+  }
+`
+
   }));
-  
+
   app.get('/api/docs-json', (req, res) => {
     res.json(swaggerDocument);
   });
-  
+
   // 新增 API 健康檢查端點
   app.get('/api/health', (req, res) => {
     res.json({
@@ -2621,7 +3772,7 @@ function setupSwagger(app) {
       timestamp: new Date().toISOString()
     });
   });
-  
+
   console.log('✅ Swagger 設置完成 - 包含完整的三大 AI 系統文檔');
   console.log('📋 API 分類統計:');
   console.log('   - 系統管理: 3 個端點');

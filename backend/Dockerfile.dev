@@ -1,0 +1,18 @@
+# Dockerfile.dev
+FROM node:18-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache python3 make g++ libc6-compat
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+# 建立必要目錄
+RUN mkdir -p uploads reports logs temp cache
+
+EXPOSE 7939 9229
+
+CMD ["npm", "run", "start:debug"]
