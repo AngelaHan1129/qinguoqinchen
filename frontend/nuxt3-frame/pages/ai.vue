@@ -122,82 +122,12 @@
   </div>
 </template>
 <style src="@/assets/css/ai.css"></style>
-<script setup>
+<script setup lang="ts">
 import { onMounted } from 'vue'
-
-function createNeuralNetwork() {
-  const container = document.getElementById('neuralNetwork')
-  const nodeCount = 50
-
-  for (let i = 0; i < nodeCount; i++) {
-    const node = document.createElement('div')
-    node.className = 'neural-node'
-    node.style.left = Math.random() * 100 + '%'
-    node.style.top = Math.random() * 100 + '%'
-    node.style.animationDelay = Math.random() * 3 + 's'
-    container.appendChild(node)
-  }
-}
+import { createNeuralNetwork, animateAccuracyCircles } from '@/composables/ai'
 
 onMounted(() => {
   createNeuralNetwork()
-
-  // 模擬準確率動畫
-  const circles = document.querySelectorAll('.accuracy-circle')
-  circles.forEach(circle => {
-    const accuracy = parseFloat(circle.style.getPropertyValue('--accuracy'))
-    let current = 0
-    const increment = accuracy / 100
-
-    const animation = setInterval(() => {
-      current += increment
-      if (current >= accuracy) {
-        current = accuracy
-        clearInterval(animation)
-      }
-      circle.style.setProperty('--accuracy', current)
-      const text = circle.querySelector('.accuracy-text')
-      if (text) {
-        text.textContent = current.toFixed(1) + '%'
-      }
-    }, 20)
-  })
+  animateAccuracyCircles()
 })
-    /* // 創建神經網路背景
-    function createNeuralNetwork() {
-      const container = document.getElementById('neuralNetwork');
-      const nodeCount = 50;
-      
-      for (let i = 0; i < nodeCount; i++) {
-        const node = document.createElement('div');
-        node.className = 'neural-node';
-        node.style.left = Math.random() * 100 + '%';
-        node.style.top = Math.random() * 100 + '%';
-        node.style.animationDelay = Math.random() * 3 + 's';
-        container.appendChild(node);
-      }
-    }
-
-    // 初始化
-    document.addEventListener('DOMContentLoaded', function() {
-      createNeuralNetwork();
-      
-      // 模擬準確率動畫
-      const circles = document.querySelectorAll('.accuracy-circle');
-      circles.forEach(circle => {
-        const accuracy = parseFloat(circle.style.getPropertyValue('--accuracy'));
-        let current = 0;
-        const increment = accuracy / 100;
-        
-        const animation = setInterval(() => {
-          current += increment;
-          if (current >= accuracy) {
-            current = accuracy;
-            clearInterval(animation);
-          }
-          circle.style.setProperty('--accuracy', current);
-          circle.querySelector('.accuracy-text').textContent = current.toFixed(1) + '%';
-        }, 20);
-      });
-    }); */
-  </script>
+</script>
