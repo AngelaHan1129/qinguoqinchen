@@ -3,7 +3,7 @@ function createSwaggerConfig() {
   return {
     title: '侵國侵城 AI 滲透測試系統 API',
     description: `
-# 🛡️ 侵國侵城 AI 滲透測試系統
+# 侵國侵城 AI 滲透測試系統
 
 ## 系統概述
 專為 eKYC 安全測試設計的 AI 紅隊滲透測試系統

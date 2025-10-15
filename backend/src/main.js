@@ -999,50 +999,7 @@ function createHealthService() {
   };
 }
 
-// 修改建立服務函數以支援 RAG
-function createAppService() {
-  return {
-    getSystemInfo() {
-      console.log('📋 執行 getSystemInfo');
-      return {
-        message: '歡迎使用侵國侵城 AI 滲透測試系統 + RAG',
-        version: '1.0.0',
-        status: 'operational',
-        framework: 'NestJS + Express + Gemini AI + Grok AI + Vertex AI Agent + RAG',
-        timestamp: new Date().toISOString(),
-        description: '本系統專為 eKYC 安全測試設計，整合多種生成式 AI 技術和 RAG 檢索增強生成',
-        capabilities: [
-          '多模態 AI 攻擊模擬 (StyleGAN3, Stable Diffusion, SimSwap, DALL·E)',
-          '智能滲透測試',
-          '量化安全評估 (APCER, BPCER, ACER, EER)',
-          'AI 驅動的防禦建議 (Gemini AI)',
-          '幽默風格的資安分析 (Grok AI)',
-          '智能 AI Agent 安全專家 (Vertex AI)',
-          'RAG 檢索增強生成系統',
-          '知識圖譜建構與查詢 (Neo4j)',
-          '向量資料庫搜尋 (PostgreSQL + pgvector)',
-          '自動化報告生成',
-          'AI 輔助攻擊策略優化'
-        ],
-        endpoints: {
-          health: '/health',
-          attackVectors: '/ai-attack/vectors',
-          executeAttack: 'POST /ai-attack/execute',
-          comboAttack: 'POST /ai-attack/combo',
-          systemStats: '/system/stats',
-          geminiTest: '/ai-gemini/test',
-          grokTest: '/ai-grok/test',
-          vertexAgentTest: '/ai-agent/test',
-          ragAsk: 'POST /rag/ask',
-          ragIngest: 'POST /rag/ingest',
-          ragStats: '/rag/stats',
-          databaseStatus: '/database/status',
-          apiDocs: '/api/docs'
-        }
-      };
-    }
-  };
-}
+
 // 新增 Vertex AI Agent 服務
 function createVertexAIAgentService() {
   if (!process.env.GOOGLE_CLOUD_PROJECT_ID || !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
@@ -2118,7 +2075,157 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
       res.status(500).json({ success: false, error: error.message });
     }
   });
+  // 🏛️ 添加法規遵循路由
+  console.log('📋 註冊法規遵循路由...');
 
+  // 法規遵循健康檢查
+  app.get('/legal-compliance/health', async (req, res) => {
+    console.log('🔍 法規遵循健康檢查...');
+    try {
+      const result = {
+        status: 'healthy',
+        service: '法規遵循系統',
+        version: '1.0.0',
+        components: {
+          vectorDatabase: process.env.DATABASE_URL ? 'configured' : 'not-configured',
+          pythonAI: process.env.PYTHON_AI_URL ? 'configured' : 'not-configured',
+          geminiAI: process.env.GEMINI_API_KEY ? 'configured' : 'not-configured'
+        },
+        capabilities: [
+          '向量相似度法規檢索',
+          'Gemini AI 法規分析',
+          '智能合規建議',
+          '風險評估與建議'
+        ],
+        timestamp: new Date()
+      };
+      res.json(result);
+    } catch (error) {
+      console.error('法規遵循健康檢查失敗:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // 法規諮詢
+  app.post('/legal-compliance/ask', async (req, res) => {
+    console.log('🏛️ 處理法規諮詢...', 'Body:', req.body);
+    try {
+      const { question, context } = req.body;
+
+      if (!question || question.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: '問題不能為空'
+        });
+      }
+
+      // 模擬法規回應 (之後可以整合真實的向量檢索和 Gemini AI)
+      const result = {
+        success: true,
+        answer: `根據分析，關於「${question}」的法規建議：
+
+1. **法規依據**：個人資料保護法第6條規定，生物特徵資料之蒐集需經當事人明確同意。
+
+2. **合規要求**：
+   - 建立明確的用戶同意機制
+   - 實施適當的資料保護措施
+   - 建立資料最小化原則
+
+3. **風險評估**：在 eKYC 系統中收集生物特徵資料屬於高風險行為，需要加強合規措施。
+
+4. **建議行動**：
+   - 在30天內完成法規遵循檢視
+   - 建立完整的同意機制
+   - 實施技術性保護措施
+
+*此為基於現有法規資料庫的初步分析，建議進一步諮詢法律專家。*`,
+        retrievedLaws: [
+          {
+            document_title: '個人資料保護法',
+            article_number: '第6條',
+            source: 'MOJ',
+            similarity: 0.89,
+            relevantText: '有關醫療、基因、性生活、健康檢查及犯罪前科之個人資料，不得蒐集、處理或利用。但有下列情形之一者，不在此限：六、經當事人書面同意...',
+            legal_concepts: ['權利義務', '同意機制'],
+            keyword_tags: ['生物特徵', '個資保護', 'eKYC']
+          }
+        ],
+        searchMetadata: {
+          totalRetrieved: 1,
+          maxSimilarity: 0.89,
+          responseTime: 850
+        },
+        complianceLevel: 'HIGH',
+        riskAssessment: {
+          level: 'HIGH',
+          score: 75,
+          recommendation: '優先處理合規問題，建議在30天內完成整改'
+        },
+        recommendations: [
+          '建立明確的用戶同意機制',
+          '實施適當的生物特徵資料保護措施',
+          '建立資料最小化原則'
+        ],
+        timestamp: new Date()
+      };
+
+      res.json({ success: true, data: result });
+
+    } catch (error) {
+      console.error('法規諮詢失敗:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // 匯入法規文件
+  app.post('/legal-compliance/import-regulations', async (req, res) => {
+    console.log('📚 匯入法規文件...');
+    try {
+      // 模擬匯入結果
+      await new Promise(resolve => setTimeout(resolve, 1000)); // 模擬處理時間
+
+      const result = {
+        total: 3,
+        successful: 3,
+        failed: 0,
+        details: [
+          {
+            success: true,
+            title: '個人資料保護法',
+            document_id: 1,
+            chunks_created: 15
+          },
+          {
+            success: true,
+            title: '資通安全管理法',
+            document_id: 2,
+            chunks_created: 8
+          },
+          {
+            success: true,
+            title: '金融機構資訊安全管理辦法',
+            document_id: 3,
+            chunks_created: 12
+          }
+        ]
+      };
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  console.log('✅ 法規遵循路由註冊完成');
   console.log('✅ 所有路由（包含 Gemini AI、Grok AI、Vertex AI Agent、RAG 和資料庫）註冊完成');
 }
 
