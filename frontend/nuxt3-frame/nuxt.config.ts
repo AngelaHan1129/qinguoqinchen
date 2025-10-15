@@ -9,4 +9,16 @@ export default defineNuxtConfig({
   build: {
     transpile: ['pinia-plugin-persistedstate'],
   },
+  vite: {
+    server: {
+      proxy: {
+        // 任何對 /api 的請求，會被代理到你後端 API
+        '/api': {
+          target: 'http://localhost:7939',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, '')
+        }
+      }
+    }
+  }
 })
