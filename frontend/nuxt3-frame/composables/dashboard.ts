@@ -1,11 +1,20 @@
+//composables/dashboard.ts
 import { ref, computed, onMounted } from 'vue'
 import { usePentestStore } from '@/stores/pentest'
 
 export function usePentestUI() {
   const pentestStore = usePentestStore()
 
-  const urlInput = ref('')
-  const fileInput = ref<File | null>(null)
+  // computed getter/setter 直接綁 store state
+  const urlInput = computed<string>({
+    get: () => pentestStore.tempUrlInput,
+    set: (v: string) => (pentestStore.tempUrlInput = v),
+  })
+
+  const fileInput = computed<File | null>({
+    get: () => pentestStore.tempFileInput,
+    set: (f: File | null) => (pentestStore.tempFileInput = f),
+  })
 
   const selectedFileName = computed(() => fileInput.value?.name || '')
 
@@ -29,6 +38,17 @@ export function usePentestUI() {
     alert('啟動滲透測試中...')
     pentestStore.startPentest()
   }
+  function isFullReload(): boolean {
+    const sessionFlag = sessionStorage.getItem('justReloaded')
+
+    if (sessionFlag === 'true') {
+      sessionStorage.removeItem('justReloaded') // 只用一次
+      return true
+    }
+
+    return false
+  }
+
 
   function updateStats() {
     const stats = document.querySelectorAll('.stat-number')
@@ -50,9 +70,13 @@ export function usePentestUI() {
     })
   }
 
+
   onMounted(() => {
-    urlInput.value = ''
-    fileInput.value = null
+    if (isFullReload()) {
+      pentestStore.resetInputs()
+    }
+
+    // 動畫與 hover 效果等
     setTimeout(updateStats, 1000)
 
     document.querySelectorAll('.cyber-card').forEach(card => {
@@ -62,9 +86,13 @@ export function usePentestUI() {
       card.addEventListener('mouseleave', (e) => {
         (e.currentTarget as HTMLElement).style.transform = 'translateY(0) rotateX(0)'
       })
-
     })
   })
+
+
+
+
+
 
   return {
     urlInput,
@@ -73,5 +101,6 @@ export function usePentestUI() {
     isInputValid,
     handleFileInput,
     startPentest
+
   }
 }

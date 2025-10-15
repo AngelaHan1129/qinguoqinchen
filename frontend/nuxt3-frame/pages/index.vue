@@ -1,3 +1,4 @@
+<!--page/index.vue-->
 <template>
     <!-- Main Container -->
   <div class="container">
@@ -142,8 +143,8 @@
   
 </template>
 <style src="@/assets/css/index.css"></style>
-<script setup>
-import { usePentestUI } from '@/composables/index.ts'
+<script setup lang="ts">
+import { usePentestUI } from '~/composables/dashboard'
 import { usePentestStore } from '@/stores/pentest'
 
 const pentestStore = usePentestStore()
