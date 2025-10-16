@@ -1,3 +1,4 @@
+//composables/ai/ts
 export function createNeuralNetwork() {
     const container = document.getElementById('neuralNetwork')
     const nodeCount = 50
@@ -38,6 +39,14 @@ export function animateAccuracyCircles() {
             if (text) {
                 text.textContent = current.toFixed(1) + '%'
             }
-        }, 20)
+        }, 10)
     })
 }
+export const getAccuracyStyle = (successRate: string) => {
+    const percentage = parseFloat(successRate.replace('%', ''))
+    return {
+        '--accuracy': percentage.toString()
+    } as Record<string, string>
+}
+
+

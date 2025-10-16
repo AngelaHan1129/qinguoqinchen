@@ -1,3 +1,4 @@
+/*ai.css*/
 /* AI 神經網路視覺化 */
     .neural-network {
       position: fixed;
@@ -98,7 +99,10 @@
       position: relative;
       display: flex; align-items: center; justify-content: center;
       margin: 1rem auto;
+      transition: background 0.3s ease;
     }
+
+
     
     .accuracy-text {
       font-size: 1.5rem;
