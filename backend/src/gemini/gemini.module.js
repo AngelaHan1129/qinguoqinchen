@@ -8,6 +8,6 @@ const { GeminiService } = require('./gemini.service');
   providers: [GeminiService],
   exports: [GeminiService], // 讓其他模組可以使用
 })
-class GeminiModule {}
+class GeminiModule { }
 
 module.exports = { GeminiModule };

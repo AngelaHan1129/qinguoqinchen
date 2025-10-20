@@ -484,6 +484,44 @@ function createGeminiService() {
         console.error('❌ 策略優化錯誤:', error.message);
         throw new Error(`攻擊策略優化失敗: ${error.message}`);
       }
+    },
+    async generateResponseWithContext(question, relevantChunks) {
+      try {
+        console.log('🤖 Gemini AI 結合上下文生成回答...');
+
+        const context = relevantChunks
+          .map(chunk => `[文件片段 ${chunk.chunkIndex}]: ${chunk.content}`)
+          .join('\n\n');
+
+        const prompt = `基於以下上下文資料回答問題：
+
+上下文資料：
+${context}
+
+使用者問題：${question}
+
+請基於提供的上下文資料回答問題，如果上下文中沒有相關資訊，請明確說明。回答要：
+1. 準確且基於提供的資料
+2. 結構清晰
+3. 引用相關的文件片段
+4. 如果資料不足，請說明需要更多資訊`;
+
+        const response = await this.ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: prompt
+        });
+
+        return {
+          text: response.text,
+          success: true,
+          timestamp: new Date().toISOString(),
+          model: "gemini-2.0-flash",
+          contextUsed: relevantChunks.length
+        };
+      } catch (error) {
+        console.error('❌ Gemini AI 生成回答失敗:', error.message);
+        throw new Error(`Gemini AI 回答生成失敗: ${error.message}`);
+      }
     }
   };
 }
@@ -669,7 +707,164 @@ function createRagService() {
   return {
     documents: [], // 模擬文檔儲存
     chunks: [], // 模擬文檔塊儲存
+    userDocuments: [], // 新增使用者文件
+    userChunks: [],    // 新增使用者文件塊
+    async ingestUserDocument(data) {
+      console.log('📝 儲存使用者文件到資料庫...');
 
+      try {
+        const docId = `user_doc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+        // 建立文件記錄
+        const document = {
+          id: docId,
+          title: data.title,
+          content: data.content,
+          category: data.category,
+          tags: data.tags,
+          userId: data.userId,
+          metadata: data.metadata,
+          createdAt: new Date().toISOString()
+        };
+
+        this.userDocuments.push(document);
+
+        // 分塊處理
+        const chunks = this.chunkUserDocument(data.content, docId, data);
+        this.userChunks.push(...chunks);
+
+        // 生成向量嵌入（模擬）
+        for (const chunk of chunks) {
+          chunk.embedding = this.generateMockEmbedding(chunk.content);
+        }
+
+        // 這裡可以加入真實的資料庫儲存邏輯
+        await this.saveToPostgreSQL(document, chunks);
+
+        console.log(`✅ 使用者文件已儲存: ${docId}, 共 ${chunks.length} 個文件塊`);
+
+        return {
+          success: true,
+          documentId: docId,
+          chunksCount: chunks.length,
+          message: `文件已成功儲存並分割為 ${chunks.length} 個片段`
+        };
+      } catch (error) {
+        console.error('❌ 儲存使用者文件失敗:', error.message);
+        throw error;
+      }
+    },
+
+    // 新增：查詢使用者文件
+    async queryUserDocuments({ question, userId, category, topK = 5 }) {
+      console.log('🔍 查詢使用者文件...', { question, userId, category });
+
+      try {
+        // 過濾使用者文件塊
+        let filteredChunks = [...this.userChunks];
+
+        if (userId) {
+          filteredChunks = filteredChunks.filter(chunk =>
+            this.userDocuments.find(doc => doc.id === chunk.documentId && doc.userId === userId)
+          );
+        }
+
+        if (category) {
+          filteredChunks = filteredChunks.filter(chunk =>
+            this.userDocuments.find(doc => doc.id === chunk.documentId && doc.category === category)
+          );
+        }
+
+        // 計算相似度
+        const relevantChunks = this.searchRelevantChunks(question, {}, topK, filteredChunks);
+
+        return {
+          relevantChunks,
+          sources: relevantChunks.map(chunk => ({
+            documentId: chunk.documentId,
+            chunkId: chunk.id,
+            similarity: chunk.similarity,
+            preview: chunk.content.substring(0, 200) + '...'
+          })),
+          totalFound: relevantChunks.length
+        };
+      } catch (error) {
+        console.error('❌ 查詢使用者文件失敗:', error.message);
+        throw error;
+      }
+    },
+
+    // 新增：分塊處理使用者文件
+    chunkUserDocument(content, docId, metadata, chunkSize = 500) {
+      const chunks = [];
+      const sentences = content.split(/[.。!！?？]+/).filter(s => s.trim().length > 0);
+
+      let currentChunk = '';
+      let chunkIndex = 0;
+
+      for (const sentence of sentences) {
+        if (currentChunk.length + sentence.length > chunkSize && currentChunk.length > 0) {
+          chunks.push({
+            id: `${docId}_chunk_${chunkIndex}`,
+            documentId: docId,
+            chunkIndex: chunkIndex,
+            content: currentChunk.trim(),
+            userId: metadata.userId,
+            category: metadata.category,
+            createdAt: new Date().toISOString()
+          });
+          currentChunk = sentence;
+          chunkIndex++;
+        } else {
+          currentChunk += ' ' + sentence;
+        }
+      }
+
+      // 最後一個塊
+      if (currentChunk.trim().length > 0) {
+        chunks.push({
+          id: `${docId}_chunk_${chunkIndex}`,
+          documentId: docId,
+          chunkIndex: chunkIndex,
+          content: currentChunk.trim(),
+          userId: metadata.userId,
+          category: metadata.category,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      return chunks;
+    },
+
+    // 新增：儲存到 PostgreSQL（模擬）
+    async saveToPostgreSQL(document, chunks) {
+      // 這裡實作真實的 PostgreSQL 儲存邏輯
+      console.log('💾 儲存到 PostgreSQL...', {
+        documentId: document.id,
+        chunksCount: chunks.length
+      });
+
+      // 實際實作時，你可以使用 TypeORM 或原生 SQL
+      // 例如：
+      // await this.documentRepository.save(document);
+      // await this.chunkRepository.save(chunks);
+    },
+
+    // 擴展現有的統計方法
+    getStats() {
+      return {
+        documentsCount: this.documents.length,
+        chunksCount: this.chunks.length,
+        userDocumentsCount: this.userDocuments.length, // 新增
+        userChunksCount: this.userChunks.length,       // 新增
+        averageChunkSize: this.chunks.length > 0 ?
+          Math.round(this.chunks.reduce((sum, chunk) => sum + chunk.text.length, 0) / this.chunks.length) : 0,
+        attackVectors: [...new Set(this.chunks.map(chunk => chunk.attackVector).filter(Boolean))],
+        runIds: [...new Set(this.chunks.map(chunk => chunk.runId).filter(Boolean))],
+        userCategories: [...new Set(this.userDocuments.map(doc => doc.category).filter(Boolean))], // 新增
+        totalUsers: [...new Set(this.userDocuments.map(doc => doc.userId).filter(Boolean))].length // 新增
+      };
+    },
     async askQuestion(question, filters = {}) {
       console.log(`🔍 RAG 查詢: ${question}`);
 
@@ -2222,6 +2417,429 @@ function registerRoutes(app, appService, healthService, attackService, geminiSer
         success: false,
         error: error.message
       });
+    }
+  });
+
+  // 在現有路由後添加用戶向量化功能
+  console.log('📚 註冊用戶向量化路由...');
+
+  const { PgVectorService } = require('./services/pgvector-service.js');
+  const pgVectorService = new PgVectorService();
+
+  // 用戶資料匯入向量化
+  app.post('/user-vector/ingest', async (req, res) => {
+    console.log('📥 收到用戶資料匯入請求, Body:', req.body);
+    try {
+      const { title, content, category, tags, metadata } = req.body;
+
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: '內容不能為空'
+        });
+      }
+
+      const result = await pgVectorService.ingestUserData({
+        title,
+        content,
+        category,
+        tags,
+        metadata
+      });
+
+      res.json({
+        success: true,
+        message: '資料向量化完成',
+        data: result
+      });
+    } catch (error) {
+      console.error('❌ 用戶資料匯入錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // 向量相似度搜尋
+  app.post('/user-vector/search', async (req, res) => {
+    console.log('📥 收到向量搜尋請求, Body:', req.body);
+    try {
+      const { query, topK, minSimilarity, category, tags, userId } = req.body;
+
+      if (!query || query.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: '搜尋查詢不能為空'
+        });
+      }
+
+      const result = await pgVectorService.vectorSearch(query, {
+        topK: topK || 5,
+        minSimilarity: minSimilarity || 0.7,
+        category,
+        tags,
+        userId
+      });
+
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('❌ 向量搜尋錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // RAG 智能問答
+  app.post('/user-vector/ask', async (req, res) => {
+    console.log('📥 收到 RAG 問答請求, Body:', req.body);
+    try {
+      const { question, topK, minSimilarity, category, tags, userId } = req.body;
+
+      if (!question || question.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: '問題不能為空'
+        });
+      }
+
+      const result = await pgVectorService.ragQuery(question, {
+        topK: topK || 5,
+        minSimilarity: minSimilarity || 0.7,
+        category,
+        tags,
+        userId
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error('❌ RAG 問答錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // 獲取用戶文檔列表
+  app.get('/user-vector/documents', async (req, res) => {
+    console.log('📥 收到文檔列表請求, Query:', req.query);
+    try {
+      const { userId, page, limit } = req.query;
+
+      const result = await pgVectorService.getUserDocuments(
+        userId,
+        parseInt(page) || 1,
+        parseInt(limit) || 20
+      );
+
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('❌ 獲取文檔列表錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // 刪除用戶文檔
+  app.delete('/user-vector/documents/:documentId', async (req, res) => {
+    console.log('📥 收到文檔刪除請求, ID:', req.params.documentId);
+    try {
+      const { documentId } = req.params;
+
+      const result = await pgVectorService.deleteUserDocument(documentId);
+      res.json(result);
+    } catch (error) {
+      console.error('❌ 文檔刪除錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // 在 registerRoutes 函數中新增
+  console.log('📚 註冊法律資料向量化路由...');
+
+  // 匯入法律資料
+  app.post('/legal/ingest', async (req, res) => {
+    console.log('📥 收到法律資料匯入請求, Body:', req.body);
+    try {
+      const { title, content, source, document_type, jurisdiction, metadata } = req.body;
+
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: '法律文件內容不能為空'
+        });
+      }
+
+      const result = await pgVectorService.ingestLegalData({
+        title,
+        content,
+        source,
+        document_type,
+        jurisdiction,
+        metadata
+      });
+
+      res.json({
+        success: true,
+        message: '法律資料向量化完成',
+        data: result
+      });
+    } catch (error) {
+      console.error('❌ 法律資料匯入錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // 法規遵循查詢
+  app.post('/legal/query', async (req, res) => {
+    console.log('📥 收到法規查詢請求, Body:', req.body);
+    try {
+      const { question, topK, minSimilarity, source } = req.body;
+
+      if (!question || question.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: '查詢問題不能為空'
+        });
+      }
+
+      const result = await pgVectorService.ragQuery(question, {
+        topK: topK || 5,
+        minSimilarity: minSimilarity || 0.7,
+        source,
+        queryType: 'legal'
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error('❌ 法規查詢錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // 統計資料
+  app.get('/vector/stats', async (req, res) => {
+    try {
+      const stats = await pgVectorService.getStats();
+      res.json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
+      console.error('❌ 統計資料錯誤:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  console.log('📄 註冊使用者資料管理路由...');
+
+  // 儲存使用者資料
+  app.post('/ai-gemini/store-user-data', async (req, res) => {
+    console.log('📝 儲存使用者資料', 'Body:', req.body);
+    try {
+      const { title, content, category, tags, userId, metadata } = req.body;
+
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: '請提供內容 (content 參數)'
+        });
+      }
+
+      const result = await ragService.ingestUserDocument({
+        title: title || '未命名文件',
+        content,
+        category: category || 'general',
+        tags: tags || [],
+        userId: userId || 'anonymous',
+        metadata: metadata || {}
+      });
+
+      res.json({
+        success: true,
+        message: '資料已成功儲存並建立向量索引',
+        data: result
+      });
+    } catch (error) {
+      console.error('❌ 儲存使用者資料失敗:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // 查詢使用者資料
+  app.post('/ai-gemini/query-user-data', async (req, res) => {
+    console.log('🔍 查詢使用者資料', 'Body:', req.body);
+    try {
+      const { question, userId, category, topK = 5 } = req.body;
+
+      if (!question) {
+        return res.status(400).json({
+          success: false,
+          error: '請提供查詢問題 (question 參數)'
+        });
+      }
+
+      // RAG 查詢
+      const ragResult = await ragService.queryUserDocuments({
+        question,
+        userId,
+        category,
+        topK
+      });
+
+      // 結合 Gemini AI 生成回答
+      const aiResponse = await geminiService.generateResponseWithContext(
+        question,
+        ragResult.relevantChunks
+      );
+
+      res.json({
+        success: true,
+        answer: aiResponse.text,
+        sources: ragResult.sources,
+        retrievedChunks: ragResult.relevantChunks.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('❌ 查詢使用者資料失敗:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+  // 新增：檢查使用者文件資料
+  console.log('🔍 註冊資料庫檢查路由...');
+
+  // 查看所有使用者文件
+  app.get('/debug/user-documents', async (req, res) => {
+    console.log('📋 查看所有使用者文件');
+    try {
+      const result = {
+        success: true,
+        userDocuments: ragService.userDocuments || [],
+        userChunks: ragService.userChunks || [],
+        stats: {
+          totalDocuments: (ragService.userDocuments || []).length,
+          totalChunks: (ragService.userChunks || []).length,
+          documentsWithEmbeddings: (ragService.userChunks || []).filter(chunk => chunk.embedding).length
+        },
+        timestamp: new Date().toISOString()
+      };
+      res.json(result);
+    } catch (error) {
+      console.error('❌ 查看使用者文件失敗:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // 查看特定文件詳情
+  app.get('/debug/user-documents/:documentId', async (req, res) => {
+    console.log('📄 查看文件詳情:', req.params.documentId);
+    try {
+      const documentId = req.params.documentId;
+      const document = (ragService.userDocuments || []).find(doc => doc.id === documentId);
+      const chunks = (ragService.userChunks || []).filter(chunk => chunk.documentId === documentId);
+
+      if (!document) {
+        return res.status(404).json({
+          success: false,
+          error: `找不到文件 ID: ${documentId}`
+        });
+      }
+
+      res.json({
+        success: true,
+        document,
+        chunks,
+        chunkCount: chunks.length,
+        hasEmbeddings: chunks.filter(chunk => chunk.embedding).length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('❌ 查看文件詳情失敗:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // 測試向量搜尋功能
+  app.post('/debug/test-vector-search', async (req, res) => {
+    console.log('🔍 測試向量搜尋', 'Body:', req.body);
+    try {
+      const { query = "測試查詢", topK = 3 } = req.body;
+
+      // 執行向量搜尋測試
+      const searchResult = ragService.searchRelevantChunks(query, {}, topK, ragService.userChunks);
+
+      res.json({
+        success: true,
+        query,
+        topK,
+        results: searchResult.map(chunk => ({
+          id: chunk.id,
+          documentId: chunk.documentId,
+          similarity: chunk.similarity,
+          content: chunk.content.substring(0, 200),
+          hasEmbedding: !!chunk.embedding,
+          embeddingDimension: chunk.embedding ? chunk.embedding.length : 0
+        })),
+        totalFound: searchResult.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('❌ 測試向量搜尋失敗:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // 檢查向量嵌入狀態
+  app.get('/debug/embedding-stats', async (req, res) => {
+    console.log('📊 檢查向量嵌入統計');
+    try {
+      const userChunks = ragService.userChunks || [];
+      const chunks = ragService.chunks || [];
+
+      const stats = {
+        userDocuments: {
+          total: (ragService.userDocuments || []).length,
+          categories: [...new Set((ragService.userDocuments || []).map(doc => doc.category))],
+          users: [...new Set((ragService.userDocuments || []).map(doc => doc.userId))]
+        },
+        userChunks: {
+          total: userChunks.length,
+          withEmbeddings: userChunks.filter(chunk => chunk.embedding && chunk.embedding.length > 0).length,
+          withoutEmbeddings: userChunks.filter(chunk => !chunk.embedding || chunk.embedding.length === 0).length,
+          averageEmbeddingDimension: userChunks.length > 0 ?
+            Math.round(userChunks
+              .filter(chunk => chunk.embedding)
+              .reduce((sum, chunk) => sum + (chunk.embedding?.length || 0), 0) /
+              userChunks.filter(chunk => chunk.embedding).length) : 0
+        },
+        systemChunks: {
+          total: chunks.length,
+          withEmbeddings: chunks.filter(chunk => chunk.embedding && chunk.embedding.length > 0).length
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      res.json({ success: true, stats });
+    } catch (error) {
+      console.error('❌ 檢查向量嵌入統計失敗:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // 清空使用者資料（用於測試）
+  app.delete('/debug/clear-user-data', async (req, res) => {
+    console.log('🗑️ 清空使用者資料');
+    try {
+      ragService.userDocuments = [];
+      ragService.userChunks = [];
+
+      res.json({
+        success: true,
+        message: '使用者資料已清空',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('❌ 清空使用者資料失敗:', error);
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 

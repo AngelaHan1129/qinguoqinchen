@@ -10,9 +10,9 @@ class GeminiController {
   @Post('attack-vector')
   async generateAttackVector(@Body() body) {
     const { prompt } = body;
-    
+
     if (!prompt) {
-      return { 
+      return {
         success: false,
         error: '請提供攻擊場景描述 (prompt 參數)'
       };
@@ -31,9 +31,9 @@ class GeminiController {
   @Post('ekyc-analysis')
   async analyzeEkycVulnerability(@Body() body) {
     const { targetSystem, attackType } = body;
-    
+
     if (!targetSystem || !attackType) {
-      return { 
+      return {
         success: false,
         error: '請提供目標系統 (targetSystem) 和攻擊類型 (attackType)'
       };
@@ -52,9 +52,9 @@ class GeminiController {
   @Post('deepfake-prompt')
   async generateDeepfakePrompt(@Body() body) {
     const { scenario } = body;
-    
+
     if (!scenario) {
-      return { 
+      return {
         success: false,
         error: '請提供 Deepfake 攻擊場景 (scenario)'
       };
