@@ -638,3 +638,36 @@ docker-compose logs backend | grep ERROR
   [![GitHub Issues](https://img.shields.io/github/issues/AngelaHan1129/qinguoqinchen)](https://github.com/AngelaHan1129/qinguoqinchen/issues)
 </div>
 
+# 專案結構
+```text
+src/
+├── main.js                 # 簡化後的啟動檔案
+├── config/
+│   ├── app.config.js       # 應用程式設定
+│   ├── swagger.config.js   # Swagger 設定
+│   └── database.config.js  # 資料庫設定
+├── services/
+│   ├── AppService.js       # 應用程式服務
+│   ├── HealthService.js    # 健康檢查服務
+│   ├── AttackService.js    # 攻擊向量服務
+│   ├── GeminiService.js    # Gemini AI 服務
+│   ├── GrokService.js      # Grok AI 服務
+│   ├── VertexAIService.js  # Vertex AI 服務
+│   ├── RagService.js       # RAG 服務
+│   └── DatabaseService.js  # 資料庫服務
+├── middleware/
+│   ├── PerformanceMiddleware.js
+│   └──SecurityMiddleware.js
+├── routes/
+│   ├── index.js            # 路由統一註冊
+│   ├── system.routes.js    # 系統相關路由
+│   ├── ai.routes.js        # AI 相關路由
+│   ├── rag.routes.js       # RAG 相關路由
+│   └── database.routes.js  # 資料庫相關路由
+├── utils/
+│   ├── logger.js           # 日誌工具
+│   ├── errorHandler.js     # 錯誤處理
+│   └── validation.js       # 輸入驗證
+└── factories/
+    └── ServiceFactory.js   # 服務工廠
+```
