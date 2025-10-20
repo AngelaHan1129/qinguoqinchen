@@ -91,7 +91,7 @@ export function usePentestUI() {
       pentestStore.resetInputs()
     }
 
-    // 動畫與 hover 效果等
+    // 動畫與 hover 效果
     setTimeout(updateStats, 1000)
 
     document.querySelectorAll('.cyber-card').forEach(card => {
