@@ -1,5 +1,6 @@
 //composables/dashboard.ts
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+
 import { usePentestStore } from '@/stores/pentest'
 
 export function usePentestUI() {
@@ -69,6 +70,20 @@ export function usePentestUI() {
       }, 50)
     })
   }
+  // 如果輸入了 URL，就清除檔案
+  watch(urlInput, (newVal) => {
+    if (newVal.trim() !== '') {
+      fileInput.value = null
+    }
+  })
+
+  // 如果選擇了檔案，就清除 URL
+  watch(fileInput, (newFile) => {
+    if (newFile !== null) {
+      urlInput.value = ''
+    }
+  })
+
 
 
   onMounted(() => {
