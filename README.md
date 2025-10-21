@@ -13,20 +13,19 @@
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://docker.com/)
 [![RAG](https://img.shields.io/badge/RAG-enabled-orange.svg)](#)
 
-> **🎯 專為 eKYC (電子身份驗證) 安全測試設計的全端 AI 紅隊滲透測試系統**  
-> **整合 RAG 檢索增強生成技術 + 多模態 AI 攻擊引擎**
+**🎯 專為 eKYC (電子身份驗證) 安全測試設計的企業級 AI 紅隊滲透測試系統**  
+> **整合 RAG 檢索增強生成技術 + 多模態 AI 攻擊引擎 + 實時威脅分析**
 
 ## 📋 目錄
 
 - [🎯 系統概述](#-系統概述)
-- [🏗️ 系統架構](#️-系統架構)
+- [🏗️ 架構設計](#️-架構設計)
 - [🚀 核心功能](#-核心功能)
 - [⚔️ 攻擊向量](#️-攻擊向量)
 - [🛠️ 技術棧](#️-技術棧)
 - [⚡ 快速開始](#-快速開始)
-- [🎨 前端開發](#-前端開發)
-- [🔧 後端開發](#-後端開發)
-- [🐍 Python AI 服務](#-python-ai-服務)
+- [📁 專案結構](#-專案結構)
+- [🔧 開發指南](#-開發指南)
 - [📚 API 文檔](#-api-文檔)
 - [🐳 部署指南](#-部署指南)
 - [🧪 測試指南](#-測試指南)
@@ -35,152 +34,151 @@
 
 ## 🎯 系統概述
 
-**侵國侵城 AI 滲透測試系統**是一個創新的全端 AI 紅隊工具，專為 **2025 創新伺服器大賽**設計。系統整合了最新的生成式 AI 技術、RAG 檢索增強生成和先進的攻擊向量模擬，提供全方位的 eKYC 安全評估解決方案。
+**侵國侵城 AI 滲透測試系統**是一個創新的企業級 AI 紅隊工具，專為 **2025 InnoServe 創新伺服器大賽**設計。系統整合了最新的生成式 AI 技術、RAG 檢索增強生成和先進的攻擊向量模擬，提供全方位的 eKYC 安全評估解決方案。
 
 ### 🌟 系統特色
 
 - **🤖 多 AI 引擎整合**: Gemini AI + Grok AI + Vertex AI Agent
-- **🔍 RAG 智慧問答**: 基於滲透測試報告的智能檢索與分析
+- **🔍 RAG 智能問答**: 基於向量資料庫的智能檢索與分析
 - **🎭 Deepfake 攻擊模擬**: StyleGAN3、SimSwap、DALL·E 等先進技術
 - **📊 量化安全評估**: APCER、BPCER、ACER、EER 專業指標
-- **🎨 現代化介面**: Vue.js 3 + TypeScript + Element Plus
-- **🔒 企業級安全**: JWT 認證 + RBAC 權限控制
+- **🔒 企業級架構**: 模組化設計 + 工廠模式 + 服務導向
+- **📱 RESTful API**: Swagger 自動化文檔 + 完整測試支援
 - **🐳 容器化部署**: Docker + Docker Compose 一鍵部署
-- **📱 響應式設計**: 支援桌面和移動設備
 
-## 🏗️ 系統架構
+## 🏗️ 架構設計
 
-```
+```mermaid
 graph TB
-    subgraph "前端層 (Frontend)"
-        A[Vue.js 3 + TypeScript]
-        B[Element Plus UI]
-        C[ECharts 可視化]
-        D[WebSocket 實時通信]
-    end
-    
     subgraph "API 層 (Backend)"
-        E[NestJS + Express]
-        F[多 AI 引擎整合]
-        G[RAG 檢索系統]
-        H[攻擊向量引擎]
+        A[NestJS + Express]
+        B[RouteManager]
+        C[ServiceFactory]
+        D[Swagger API 文檔]
     end
     
-    subgraph "AI 服務層"
-        I[Python FastAPI]
-        J[Sentence Transformers]
-        K[向量嵌入模型]
+    subgraph "服務層 (Services)"
+        E[RAG Service<br/>Gemini AI 整合]
+        F[Attack Service<br/>5種攻擊向量]
+        G[Health Service<br/>系統監控]
+        H[Database Service<br/>多資料庫支援]
     end
     
-    subgraph "數據層 (Database)"
-        L[PostgreSQL + pgvector]
-        M[Neo4j 知識圖譜]
-        N[Redis 快取]
+    subgraph "AI 引擎層"
+        I[Gemini AI<br/>智能生成]
+        J[Grok AI<br/>安全分析]
+        K[Vertex AI Agent<br/>對話式AI]
     end
     
-    A --> E
+    subgraph "資料層 (Database)"
+        L[PostgreSQL + pgvector<br/>向量資料庫]
+        M[Neo4j<br/>知識圖譜]
+        N[Redis<br/>快取系統]
+    end
+    
+    A --> B
+    B --> C
+    C --> E
+    C --> F
+    C --> G
+    C --> H
     E --> I
     E --> L
-    E --> M
-    E --> N
-    I --> J
-    J --> K
+    F --> I
+    F --> J
+    G --> K
+    H --> L
+    H --> M
+    H --> N
 ```
 
 ## 🚀 核心功能
 
-### 🎮 前端功能
-| 功能模組 | 描述 | 狀態 |
-|---------|------|-----|
-| **攻擊控制台** | 直觀的攻擊向量選擇和參數配置 | ✅ |
-| **實時監控** | 攻擊進度和系統狀態實時顯示 | ✅ |
-| **RAG 智慧問答** | 基於文檔的智能查詢與分析 | ✅ |
-| **數據可視化** | 攻擊結果和安全指標圖表展示 | 🔄 |
-| **報告管理** | 自動生成和下載詳細測試報告 | 🔄 |
-| **用戶管理** | 角色權限管理和審計日誌 | 📋 |
+### 🎮 後端核心模組
 
-### 🔧 後端功能
-| 功能模組 | 描述 | 狀態 |
-|---------|------|-----|
-| **多 AI 引擎** | Gemini AI + Grok AI + Vertex AI Agent | ✅ |
-| **RAG 系統** | 文檔向量化、相似度搜尋、智慧問答 | ✅ |
-| **攻擊引擎** | 5 種 AI 攻擊向量模擬執行 | ✅ |
-| **安全評估** | APCER、BPCER、ACER、EER 指標計算 | ✅ |
-| **知識圖譜** | Neo4j 攻擊關係網絡分析 | 🔄 |
-| **API 文檔** | Swagger 自動生成文檔 | ✅ |
+| 功能模組 | 描述 | 實作狀態 |
+|---------|------|---------|
+| **🤖 多 AI 引擎** | Gemini + Grok + Vertex AI 整合 | ✅ 完成 |
+| **🔍 RAG 系統** | 向量檢索 + 智能問答 + 文檔管理 | ✅ 完成 |
+| **⚔️ 攻擊引擎** | 5種 AI 攻擊向量 + 組合攻擊 | ✅ 完成 |
+| **📊 系統監控** | 健康檢查 + 效能統計 + 日誌追蹤 | ✅ 完成 |
+| **📚 API 文檔** | Swagger UI + 自動化測試 | ✅ 完成 |
+| **🔧 管理功能** | 系統配置 + 版本資訊 + 統計分析 | ✅ 完成 |
+
+### 🎯 RAG 智能問答系統
+
+| 功能 | 描述 | API 端點 |
+|------|------|---------|
+| **智能問答** | 基於向量檢索的 AI 問答 | `POST /rag/ask` |
+| **文檔攝取** | 文字、檔案、法律文件攝取 | `POST /rag/ingest/*` |
+| **語義搜尋** | 向量相似度文檔搜尋 | `POST /rag/search` |
+| **文檔管理** | 查看、刪除、批次處理 | `GET/DELETE /rag/document/*` |
+| **系統統計** | RAG 系統運行狀態 | `GET /rag/stats` |
 
 ## ⚔️ 攻擊向量
+
+### 🎯 核心攻擊向量
 
 | 向量ID | AI 模型 | 攻擊場景 | 難度等級 | 成功率 | 實作狀態 |
 |-------|---------|----------|----------|--------|----------|
 | **A1** | StyleGAN3 | 偽造真人自拍 | 🟡 MEDIUM | 78% | ✅ 已實作 |
-| **A2** | StableDiffusion | 翻拍攻擊 | 🔴 HIGH | 65% | ✅ 已實作 |
-| **A3** | SimSwap | 即時換臉 | 🔴 VERY_HIGH | 89% | ✅ 已實作 |
-| **A4** | Diffusion+GAN | 偽造護照 | 🔴 HIGH | 73% | ✅ 已實作 |
-| **A5** | DALL·E | 生成假證件 | 🟡 MEDIUM | 82% | ✅ 已實作 |
+| **A2** | StableDiffusion | 螢幕翻拍攻擊 | 🟢 LOW | 65% | ✅ 已實作 |
+| **A3** | SimSwap | 即時換臉攻擊 | 🔴 HIGH | 89% | ✅ 已實作 |
+| **A4** | Diffusion+GAN | 偽造護照攻擊 | 🟡 MEDIUM | 73% | ✅ 已實作 |
+| **A5** | DALL·E | 生成假證件 | 🟢 EASY | 82% | ✅ 已實作 |
 
 ### 🎯 推薦攻擊組合
 
-| 組合名稱 | 向量組合 | 描述 | 預估成功率 | 使用場景 |
+| 組合名稱 | 向量組合 | 描述 | 預估成功率 | 威脅等級 |
 |---------|----------|------|------------|----------|
-| **🔥 鑽石組合** | A3 + A4 | 即時換臉 + 證件偽造 | **94%** | 高風險 eKYC 系統測試 |
-| **💎 黃金組合** | A1 + A5 | 假自拍 + 生成證件 | **83%** | 標準滲透測試 |
-| **⚡ 閃電組合** | A2 + A3 | 翻拍攻擊 + 即時換臉 | **92%** | 視訊驗證繞過 |
+| **💎 鑽石組合** | A3 + A4 | 即時換臉 + 證件偽造 | **94%** | 🔴 CRITICAL |
+| **🥇 黃金組合** | A1 + A5 | 假自拍 + 生成證件 | **83%** | 🟠 HIGH |
+| **⚡ 閃電組合** | A2 + A3 | 翻拍攻擊 + 即時換臉 | **92%** | 🔴 CRITICAL |
 
 ## 🛠️ 技術棧
 
-### 前端技術
-```
-{
-  "framework": "Vue.js 3.4.0",
-  "language": "TypeScript 5.0+",
-  "build": "Vite 5.0+",
-  "ui": "Element Plus 2.4+",
-  "charts": "ECharts 5.4+",
-  "http": "Axios 1.6+",
-  "router": "Vue Router 4.0+",
-  "state": "Pinia 2.1+",
-  "styling": "SCSS + TailwindCSS"
-}
-```
+### 後端核心技術
 
-### 後端技術
-```
+```json
 {
-  "framework": "NestJS 11.0.1 + Express",
-  "language": "JavaScript ES2020",
-  "ai_engines": {
-    "gemini": "Google Gemini API",
-    "grok": "X.AI Grok API", 
+  "框架": "NestJS 11.0.1 + Express 4.19.2",
+  "語言": "JavaScript ES2020 + Node.js 18+",
+  "設計模式": {
+    "架構": "分層架構 + 服務導向",
+    "模式": "工廠模式 + 策略模式",
+    "管理": "依賴注入 + 控制反轉"
+  },
+  "AI引擎": {
+    "gemini": "Google Gemini 2.0 Flash API",
+    "grok": "X.AI Grok API",
     "vertex": "Google Vertex AI Agent"
   },
-  "database": {
-    "postgresql": "15+ with pgvector",
-    "neo4j": "5.15 with APOC plugins",
-    "redis": "7.0+ for caching"
-  },
-  "documentation": "Swagger/OpenAPI 3.0",
-  "testing": "Jest 29.7+",
-  "containerization": "Docker + Docker Compose"
+  "文檔": "Swagger/OpenAPI 3.0 + 自動化生成",
+  "測試": "Jest 29.7+ + Supertest"
 }
 ```
 
-### AI 服務技術
-```
+### 資料庫技術
+
+```json
 {
-  "framework": "FastAPI 0.104.1",
-  "language": "Python 3.11+",
-  "ai_models": {
-    "embedding": "intfloat/e5-large-v2",
-    "dimension": 1024,
-    "vector_db": "PostgreSQL + pgvector"
-  },
-  "libraries": {
-    "sentence_transformers": "2.2.2",
-    "torch": "2.0+",
-    "numpy": "1.24+",
-    "uvicorn": "0.24.0"
-  }
+  "主資料庫": "PostgreSQL 15+ with pgvector",
+  "向量搜尋": "pgvector 擴展 (1024維)",
+  "圖資料庫": "Neo4j 5.15 with APOC",
+  "快取系統": "Redis 7.0+",
+  "ORM": "原生 SQL + 連接池管理"
+}
+```
+
+### AI 與機器學習
+
+```json
+{
+  "RAG系統": "檢索增強生成 (Retrieval-Augmented Generation)",
+  "向量模型": "intfloat/multilingual-e5-large",
+  "向量維度": 1024,
+  "相似度算法": "餘弦相似度 (Cosine Similarity)",
+  "語言支援": "繁體中文 + 多語言"
 }
 ```
 
@@ -188,229 +186,339 @@ graph TB
 
 ### 💻 環境需求
 
-```
+```bash
 # 基本環境
 Node.js >= 18.0.0
-Python >= 3.11.0
-pnpm >= 8.0.0 (推薦)
+npm >= 9.0.0 (建議使用 pnpm >= 8.0.0)
+Git >= 2.30.0
+
+# 可選環境 (完整功能)
 Docker >= 20.10.0
 Docker Compose >= 2.0.0
-
-# 推薦硬體配置
-RAM >= 16GB (推薦 32GB)
-GPU >= RTX 3070 (AI 模型加速，可選)
-Storage >= 100GB SSD
+PostgreSQL >= 15.0 (with pgvector)
+Redis >= 7.0
 ```
 
-### 🚀 一鍵啟動
+### 🚀 快速啟動
 
-```
+```bash
 # 1. 克隆專案
 git clone https://github.com/AngelaHan1129/qinguoqinchen.git
-cd qinguoqinchen
+cd qinguoqinchen/backend
 
-# 2. 設定環境變數
-cp .env.example .env
-cp backend/vertex-ai-key.json.example backend/vertex-ai-key.json
-# 編輯 .env 和 vertex-ai-key.json 填入真實憑證
+# 2. 安裝依賴
+pnpm install
 
-# 3. 一鍵啟動 (Docker)
-docker-compose up -d
+# 3. 設定環境變數 (基本配置)
+cat > .env << EOF
+NODE_ENV=development
+PORT=7939
+GEMINI_API_KEY=your_gemini_api_key_here
+XAI_API_KEY=your_grok_api_key_here
+LOG_LEVEL=info
+EOF
 
-# 4. 驗證服務
-curl http://localhost:7939/health  # 後端健康檢查
-curl http://localhost:8000/health  # Python AI 服務
+# 4. 啟動系統
+pnpm start:dev
+
+# 5. 驗證啟動
+curl http://localhost:7939/health
 ```
 
 ### 🔍 服務端點
 
 | 服務 | URL | 描述 | 狀態 |
 |------|-----|------|-----|
-| **前端應用** | http://localhost:3000 | Vue.js Web 界面 | 🔄 開發中 |
-| **後端 API** | http://localhost:7939 | NestJS API 服務 | ✅ 運行中 |
-| **Python AI** | http://localhost:8000 | FastAPI 向量化服務 | ✅ 運行中 |
-| **Swagger 文檔** | http://localhost:7939/api/docs | API 文檔界面 | ✅ 可用 |
-| **PostgreSQL** | localhost:5847 | 主資料庫 | ✅ 已配置 |
-| **Neo4j Web** | http://localhost:7474 | 圖資料庫管理 | 🔄 配置中 |
-| **Redis** | localhost:6379 | 快取服務 | 🔄 配置中 |
+| **🏠 系統首頁** | http://localhost:7939 | 系統概覽 | ✅ 運行中 |
+| **📚 API 文檔** | http://localhost:7939/api/docs | Swagger UI 文檔 | ✅ 可用 |
+| **💚 健康檢查** | http://localhost:7939/health | 系統健康狀態 | ✅ 監控中 |
+| **⚔️ 攻擊向量** | http://localhost:7939/ai-attack/vectors | 攻擊向量列表 | ✅ 就緒 |
+| **🤖 RAG 問答** | http://localhost:7939/rag/ask | 智能問答系統 | ✅ 就緒 |
 
-## 🎨 前端開發
+## 📁 專案結構
 
-### 📁 專案結構
-```
-frontend/
+```text
+qinguoqinchen/backend/
 ├── src/
-│   ├── components/           # 共用組件
-│   │   ├── AttackConsole/   # 攻擊控制台
-│   │   ├── RAGChat/         # RAG 聊天介面
-│   │   ├── Dashboard/       # 儀表板
-│   │   └── Charts/          # 圖表組件
-│   ├── views/               # 頁面組件
-│   │   ├── Home.vue         # 首頁
-│   │   ├── Attack.vue       # 攻擊頁面
-│   │   ├── RAG.vue          # RAG 智慧問答
-│   │   └── Reports.vue      # 報告管理
-│   ├── stores/              # Pinia 狀態管理
-│   ├── api/                 # API 接口封裝
-│   └── utils/               # 工具函數
-└── package.json            # 依賴配置
+│   ├── main.js                 # 🚀 應用程式入口 (NestJS + Express)
+│   ├── config/                 # ⚙️ 配置管理
+│   │   ├── swagger.config.js   # 📚 Swagger/OpenAPI 配置
+│   │   └── database.config.js  # 🗄️ 資料庫配置 (PostgreSQL/Neo4j/Redis)
+│   ├── services/               # 🔧 業務邏輯服務層
+│   │   ├── RAGService.js       # 🧠 RAG 系統 (Gemini AI 整合)
+│   │   ├── AttackService.js    # ⚔️ 攻擊向量服務
+│   │   ├── HealthService.js    # 💚 健康檢查服務
+│   │   ├── AppService.js       # 🏠 應用程式核心服務
+│   │   └── DatabaseService.js  # 🗄️ 資料庫管理服務
+│   ├── routes/                 # 🛣️ API 路由層
+│   │   ├── index.js            # 🎯 路由統一註冊管理器
+│   │   ├── rag.routes.js       # 🤖 RAG 系統路由 (9個端點)
+│   │   ├── system.routes.js    # 🏠 系統管理路由
+│   │   ├── ai.routes.js        # 🧠 AI 引擎路由
+│   │   └── database.routes.js  # 🗄️ 資料庫操作路由
+│   ├── utils/                  # 🛠️ 工具與輔助函數
+│   │   ├── logger.js           # 📝 日誌管理工具
+│   │   ├── errorHandler.js     # ❌ 錯誤處理工具
+│   │   └── validation.js       # ✅ 輸入驗證工具
+│   ├── middleware/             # 🔒 中間件層
+│   │   ├── SecurityMiddleware.js   # 🛡️ 安全中間件
+│   │   └── PerformanceMiddleware.js # ⚡ 效能監控中間件
+│   └── factories/              # 🏭 工廠模式實作
+│       └── ServiceFactory.js   # 🔧 服務工廠 (依賴注入)
+├── uploads/                    # 📁 檔案上傳目錄
+├── logs/                       # 📊 系統日誌目錄
+├── package.json               # 📦 Node.js 專案配置
+├── .env                       # 🔐 環境變數配置
+├── docker-compose.yml         # 🐳 Docker 容器編排
+└── README.md                  # 📖 專案說明文檔
 ```
 
-### 🔨 開發指令
-```
-cd frontend
+### 🎯 核心檔案說明
 
-# 安裝依賴
+#### **🚀 應用程式入口 (`main.js`)**
+- NestJS + Express 混合架構
+- 服務工廠模式初始化
+- 路由統一註冊管理
+- 優雅關閉處理
+
+#### **🤖 RAG 服務核心 (`RAGService.js`)**
+- Gemini AI 整合
+- 向量檢索增強生成
+- 內建知識庫管理
+- 智能問答處理
+
+#### **📚 Swagger 配置 (`swagger.config.js`)**
+- OpenAPI 3.0 規格
+- 自動化 API 文檔
+- 互動式測試介面
+- 完整的 schema 定義
+
+#### **🎯 路由管理器 (`routes/index.js`)**
+- 統一路由註冊
+- 中間件設置
+- 錯誤處理配置
+- 404 處理策略
+
+## 🔧 開發指南
+
+### 📋 開發流程
+
+```bash
+# 1. 開發環境設置
 pnpm install
+cp .env.example .env
+# 編輯 .env 檔案設定 API 金鑰
 
-# 開發模式
-pnpm dev
+# 2. 啟動開發服務器
+pnpm start:dev
+# 系統會自動重載 (nodemon)
 
-# 建構生產版本
-pnpm build
+# 3. 驗證功能
+curl http://localhost:7939/health
+open http://localhost:7939/api/docs
 
-# 程式碼檢查
-pnpm lint
+# 4. 執行測試
+pnpm test
+pnpm run test:watch
 
-# 類型檢查
-pnpm type-check
+# 5. 程式碼檢查
+pnpm run lint
+pnpm run format
 ```
 
-## 🔧 後端開發
+### 🧩 添加新功能
 
-### 📁 專案結構
-```
-backend/
-├── src/
-│   ├── modules/
-│   │   ├── ai-attack/          # AI 攻擊模組
-│   │   ├── ai-gemini/          # Gemini AI 模組
-│   │   ├── ai-grok/            # Grok AI 模組
-│   │   ├── ai-agent/           # Vertex AI Agent 模組
-│   │   ├── rag/                # RAG 檢索增強生成
-│   │   └── database/           # 資料庫管理
-│   ├── common/                 # 共用模組
-│   └── main.js                 # 應用入口
-├── python-ai/                  # Python AI 服務
-│   ├── main.py                 # FastAPI 應用
-│   ├── requirements.txt        # Python 依賴
-│   └── models/                 # AI 模型快取
-└── package.json               # Node.js 依賴
+#### 1. 新增服務
+
+```javascript
+// src/services/NewService.js
+class NewService {
+  constructor(dependencies) {
+    this.deps = dependencies;
+  }
+  
+  async newMethod() {
+    // 業務邏輯
+  }
+}
+
+module.exports = NewService;
 ```
 
-### 🔨 開發指令
+#### 2. 註冊到工廠
+
+```javascript
+// src/factories/ServiceFactory.js
+static createNewService() {
+  const NewService = require('../services/NewService');
+  return new NewService(/* dependencies */);
+}
+
+static createAllServices() {
+  return {
+    // ... 其他服務
+    newService: this.createNewService()
+  };
+}
 ```
-# Node.js 後端
-cd backend
-npm install
-node src/main.js
 
-# Python AI 服務
-cd backend/python-ai
-python -m venv venv
-venv\Scripts\activate  # Windows
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+#### 3. 添加路由
+
+```javascript
+// src/routes/new.routes.js
+class NewRoutes {
+  static register(app, services) {
+    const { newService } = services;
+    
+    app.get('/new/endpoint', async (req, res) => {
+      const result = await newService.newMethod();
+      res.json({ success: true, result });
+    });
+  }
+}
+
+module.exports = NewRoutes;
 ```
 
-## 🐍 Python AI 服務
+#### 4. 註冊路由
 
-### 🧠 AI 模型說明
-- **模型**: intfloat/e5-large-v2
-- **維度**: 1024
-- **語言支援**: 100+ 語言（包含繁體中文）
-- **用途**: 文本向量化、語義搜尋、RAG 檢索
+```javascript
+// src/routes/index.js
+const NewRoutes = require('./new.routes');
 
-### 🔌 API 端點
-| 端點 | 方法 | 描述 | 範例 |
-|------|------|------|------|
-| `/embed` | POST | 單一文本向量化 | `{"text": "eKYC攻擊分析"}` |
-| `/embed/batch` | POST | 批量文本向量化 | `{"texts": ["文本1", "文本2"]}` |
-| `/health` | GET | 健康檢查 | 返回服務狀態 |
+static registerAllRoutes(app, services) {
+  // ... 其他路由
+  NewRoutes.register(app, services);
+}
+```
+
+### 🎯 最佳實踐
+
+#### **🏗️ 架構原則**
+- **單一職責原則**: 每個服務只負責一個功能領域
+- **依賴注入**: 透過工廠模式管理依賴關係
+- **錯誤處理**: 統一的錯誤處理和日誌記錄
+- **API 設計**: RESTful 設計 + 統一回應格式
+
+#### **🔒 安全考量**
+- **輸入驗證**: 所有用戶輸入都要驗證
+- **錯誤隱藏**: 生產環境不暴露敏感錯誤資訊
+- **API 速率限制**: 防止 API 濫用
+- **環境變數**: 敏感資訊使用環境變數管理
 
 ## 📚 API 文檔
 
-### 🔑 主要 API 端點
+### 🔗 主要 API 端點
 
-#### 攻擊系統
+#### **🏠 系統管理 API**
+```bash
+GET  /                     # 系統首頁資訊
+GET  /health              # 健康檢查
+GET  /system/info         # 系統詳細資訊
+GET  /admin/stats         # 管理統計
+GET  /admin/version       # 版本資訊
 ```
-# 獲取攻擊向量列表
-GET /ai-attack/vectors
 
-# 執行單一攻擊
-POST /ai-attack/execute
+#### **⚔️ 攻擊系統 API**
+```bash
+GET  /ai-attack/vectors              # 取得所有攻擊向量
+POST /ai-attack/execute              # 執行攻擊測試
+POST /ai-gemini/attack-vector        # Gemini AI 攻擊分析
+POST /ai-grok/security-analysis      # Grok AI 安全分析
+POST /ai-agent/chat                  # Vertex AI 對話
+```
+
+#### **🤖 RAG 系統 API**
+```bash
+GET  /rag/stats                      # RAG 系統統計
+POST /rag/ask                        # 智能問答
+POST /rag/ingest/text                # 文字文檔攝取
+POST /rag/ingest/file                # 檔案上傳攝取
+POST /rag/ingest/legal               # 法律文檔攝取
+POST /rag/search                     # 語義搜尋
+GET  /rag/document/:id               # 取得文檔詳情
+DELETE /rag/document/:id             # 刪除文檔
+POST /rag/batch/ingest               # 批次攝取 (最多50個)
+```
+
+### 📖 詳細 API 文檔
+
+完整的 API 文檔請訪問：**http://localhost:7939/api/docs**
+
+#### **🎯 RAG 智能問答範例**
+
+```bash
+# 基本問答
+curl -X POST http://localhost:7939/rag/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "eKYC 系統的主要安全威脅有哪些？",
+    "filters": {
+      "documentType": "security"
+    }
+  }'
+
+# 回應範例
 {
-  "vectorIds": ["A1", "A3"],
-  "intensity": "high",
-  "options": {}
+  "success": true,
+  "answer": "基於相關資料分析，eKYC 系統面臨的主要安全威脅包括...",
+  "sources": [
+    {
+      "id": "ekyc_security_001",
+      "title": "eKYC 系統安全威脅分析",
+      "similarity": 0.95,
+      "category": "security"
+    }
+  ],
+  "confidence": 0.88,
+  "mode": "RAG",
+  "documentsUsed": 1,
+  "timestamp": "2025-10-21T02:00:00.000Z"
 }
-
-# 執行複合攻擊
-POST /ai-attack/combo
-{
-  "combos": [["A1", "A4"], ["A3", "A5"]],
-  "intensity": "medium"
-}
 ```
 
-#### RAG 智慧問答
-```
-# RAG 問答
-POST /rag/ask
+#### **⚔️ 攻擊執行範例**
+
+```bash
+# 執行多向量攻擊
+curl -X POST http://localhost:7939/ai-attack/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "vectorIds": ["A3", "A4"],
+    "intensity": "high"
+  }'
+
+# 回應範例
 {
-  "question": "eKYC系統如何防護Deepfake攻擊？",
-  "filters": {
-    "attackVector": "A3",
-    "runId": "test-001"
+  "success": true,
+  "testId": "QQC_ATK_1729454567890_A1B2C3",
+  "attackResults": {
+    "vectors": ["A3", "A4"],
+    "intensity": "high",
+    "results": [
+      {
+        "vectorId": "A3",
+        "success": true,
+        "confidence": 0.89,
+        "bypassScore": 0.92,
+        "processingTime": 2341
+      }
+    ],
+    "summary": {
+      "totalAttacks": 2,
+      "successfulAttacks": 1,
+      "successRate": "50%",
+      "threatLevel": "HIGH"
+    }
   }
 }
-
-# 文檔匯入
-POST /rag/ingest
-{
-  "text": "滲透測試報告內容...",
-  "metadata": {
-    "attackVector": "A3",
-    "runId": "test-001",
-    "documentType": "penetration-report"
-  }
-}
-
-# RAG 統計
-GET /rag/stats
 ```
-
-#### 多 AI 引擎
-```
-# Gemini AI 攻擊向量生成
-POST /ai-gemini/attack-vector
-{
-  "prompt": "針對銀行eKYC系統的深偽攻擊策略"
-}
-
-# Grok AI 安全分析
-POST /ai-grok/security-analysis
-{
-  "threatDescription": "AI生成Deepfake攻擊",
-  "targetSystem": "銀行eKYC系統"
-}
-
-# Vertex AI Agent 對話
-POST /ai-agent/chat
-{
-  "message": "分析銀行eKYC系統的安全風險",
-  "sessionId": "security-session-1"
-}
-```
-
-### 📖 完整 API 文檔
-訪問 **Swagger UI**: http://localhost:7939/api/docs
 
 ## 🐳 部署指南
 
-### 🏗️ Docker Compose 配置
+### 🏗️ Docker Compose 部署
 
-```
+```yaml
 # docker-compose.yml
 version: '3.8'
 
@@ -418,30 +526,24 @@ services:
   # 後端服務
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     ports:
       - "7939:7939"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://admin:password@postgres:5432/qinguoqinchen_ai
+      - DATABASE_URL=postgresql://admin:qinguoqinchen123@postgres:5432/qinguoqinchen_ai
       - NEO4J_URI=bolt://neo4j:7687
       - REDIS_URL=redis://redis:6379
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
     depends_on:
       - postgres
-      - neo4j
+      - neo4j  
       - redis
-      - python-ai
-
-  # Python AI 服務
-  python-ai:
-    build:
-      context: ./backend/python-ai
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
     volumes:
-      - ./backend/python-ai/models:/app/models
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
 
   # PostgreSQL 資料庫
   postgres:
@@ -457,7 +559,7 @@ services:
 
   # Neo4j 圖資料庫
   neo4j:
-    image: neo4j:5.15
+    image: neo4j:5.15-community
     ports:
       - "7474:7474"
       - "7687:7687"
@@ -472,119 +574,163 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    command: redis-server --requirepass qinguoqinchen123
+    volumes:
+      - redis_data:/data
 
 volumes:
   postgres_data:
   neo4j_data:
+  redis_data:
 ```
 
-### 🚀 生產環境部署
+### 🚀 部署步驟
 
-```
-# 1. 克隆並設定
+```bash
+# 1. 準備環境
 git clone https://github.com/AngelaHan1129/qinguoqinchen.git
-cd qinguoqinchen
+cd qinguoqinchen/backend
 
-# 2. 設置生產環境變數
+# 2. 設定環境變數
 cp .env.example .env.production
-# 編輯生產環境配置
+# 編輯 .env.production 設定真實的 API 金鑰
 
-# 3. 建構並啟動
-docker-compose -f docker-compose.prod.yml up -d --build
+# 3. 啟動服務
+docker-compose up -d --build
 
-# 4. 初始化資料庫
-docker-compose exec backend npm run db:migrate
-docker-compose exec backend npm run db:seed
+# 4. 驗證部署
+docker-compose ps
+curl http://localhost:7939/health
 
-# 5. 驗證部署
-curl http://your-domain.com/health
+# 5. 查看日誌
+docker-compose logs -f backend
 ```
 
 ## 🧪 測試指南
 
-### 🔬 單元測試
-```
-# 後端測試
-cd backend
-npm test
-npm run test:cov
+### 🔬 系統測試
 
-# Python AI 服務測試
-cd backend/python-ai
-python -m pytest
-python -m pytest --cov=.
-```
-
-### 🌐 API 測試範例
-```
-# 健康檢查
+```bash
+# 健康檢查測試
 curl http://localhost:7939/health
 
 # 攻擊向量測試
 curl http://localhost:7939/ai-attack/vectors
 
-# RAG 問答測試
+# RAG 系統測試
 curl -X POST http://localhost:7939/rag/ask \
   -H "Content-Type: application/json" \
-  -d '{"question":"A3攻擊向量的成功率是多少？"}'
+  -d '{"question":"什麼是 Deepfake 攻擊？"}'
 
-# Python AI 服務測試
-curl -X POST http://localhost:8000/embed \
+# 文檔攝取測試
+curl -X POST http://localhost:7939/rag/ingest/text \
   -H "Content-Type: application/json" \
-  -d '{"text":"eKYC系統安全測試"}'
+  -d '{
+    "text": "eKYC 系統是電子身份驗證的重要技術...",
+    "metadata": {"title": "eKYC 技術說明"}
+  }'
+```
+
+### 📊 效能測試
+
+```bash
+# 併發攻擊測試
+for i in {1..10}; do
+  curl -X POST http://localhost:7939/ai-attack/execute \
+    -H "Content-Type: application/json" \
+    -d '{"vectorIds":["A1"],"intensity":"medium"}' &
+done
+
+# RAG 問答壓力測試
+for i in {1..20}; do
+  curl -X POST http://localhost:7939/rag/ask \
+    -H "Content-Type: application/json" \
+    -d '{"question":"eKYC 安全威脅"}' &
+done
 ```
 
 ## 🔧 故障排除
 
 ### ❓ 常見問題
 
-#### 1. Python AI 服務啟動失敗
-```
-# 檢查 Python 版本
-python --version  # 需要 >= 3.11
+#### **1. 系統啟動失敗**
+```bash
+# 檢查 Node.js 版本
+node --version  # 需要 >= 18.0.0
 
-# 重新安裝依賴
-pip install -r requirements.txt --no-cache-dir
+# 清理並重新安裝
+rm -rf node_modules package-lock.json
+pnpm install
 
-# 使用輕量版模擬服務
-uvicorn main-lite:app --host 0.0.0.0 --port 8000
-```
-
-#### 2. 資料庫連接問題
-```
-# 檢查資料庫狀態
-docker-compose ps
-
-# 重新啟動資料庫服務
-docker-compose restart postgres neo4j redis
-
-# 檢查資料庫日誌
-docker-compose logs postgres
-```
-
-#### 3. AI API 配置問題
-```
 # 檢查環境變數
 echo $GEMINI_API_KEY
 echo $XAI_API_KEY
-echo $GOOGLE_CLOUD_PROJECT_ID
+```
+
+#### **2. RAG 問答回傳模擬結果**
+```bash
+# 確認 Gemini API 金鑰設置
+grep GEMINI_API_KEY .env
 
 # 測試 API 連接
-curl http://localhost:7939/ai-gemini/test
-curl http://localhost:7939/ai-grok/test
+curl -H "Authorization: Bearer $GEMINI_API_KEY" \
+  https://generativelanguage.googleapis.com/v1/models
+```
+
+#### **3. 資料庫連接問題**
+```bash
+# 檢查資料庫狀態
+docker-compose ps
+
+# 重新啟動資料庫
+docker-compose restart postgres neo4j redis
+
+# 檢查連接
+psql -h localhost -p 5847 -U admin -d qinguoqinchen_ai
+```
+
+#### **4. 攻擊向量執行異常**
+```bash
+# 檢查服務狀態
+curl http://localhost:7939/health
+
+# 查看詳細日誌
+docker-compose logs backend | grep ERROR
+
+# 重新啟動後端服務
+docker-compose restart backend
 ```
 
 ### 📝 日誌分析
+
+```bash
+# 查看系統日誌
+tail -f logs/system.log
+
+# 查看錯誤日誌
+tail -f logs/error.log
+
+# 查看 RAG 操作日誌
+docker-compose logs backend | grep "RAG"
+
+# 查看攻擊執行日誌
+docker-compose logs backend | grep "攻擊"
 ```
-# 查看所有服務日誌
-docker-compose logs -f
 
-# 查看特定服務日誌
-docker-compose logs -f backend
-docker-compose logs -f python-ai
+### 🚨 監控指標
 
-# 日誌過濾
-docker-compose logs backend | grep ERROR
+```bash
+# 系統健康狀態
+curl http://localhost:7939/health
+
+# RAG 系統統計
+curl http://localhost:7939/rag/stats
+
+# 管理統計資訊
+curl http://localhost:7939/admin/stats
+
+# 記憶體使用情況
+curl http://localhost:7939/system/info
 ```
 
 ## 🤝 貢獻指南
@@ -604,70 +750,34 @@ docker-compose logs backend | grep ERROR
 - **測試覆蓋率**: 新功能需達到 80% 以上覆蓋率
 - **文檔更新**: 新功能需同步更新 README 和 API 文檔
 
-### 🐛 回報問題
+### 🐛 問題回報
 
-請使用 [GitHub Issues](https://github.com/AngelaHan1129/qinguoqinchen/issues) 回報問題，包含：
+請使用 [GitHub Issues](https://github.com/AngelaHan1129/qinguoqinchen/issues) 回報問題：
+
 - 詳細的問題描述
 - 重現步驟
 - 期望行為
 - 系統環境資訊
 - 相關截圖或日誌
 
----
-
 ## 📞 聯絡資訊
 
-- **專案首頁**: https://github.com/AngelaHan1129/qinguoqinchen
-- **問題回報**: [GitHub Issues](https://github.com/AngelaHan1129/qinguoqinchen/issues)
-- **開發團隊**: 國立臺中科技大學 資訊管理系
-- **比賽項目**: 2025 創新伺服器大賽
+- **🏫 開發團隊**: 國立臺中科技大學 資訊管理系
+- **🏆 競賽項目**: 2025 InnoServe 大專校院資訊應用服務創新競賽
+- **🌐 專案首頁**: [GitHub Repository](https://github.com/AngelaHan1129/qinguoqinchen)
+- **🐛 問題回報**: [GitHub Issues](https://github.com/AngelaHan1129/qinguoqinchen/issues)
+- **📧 聯絡信箱**: qinguoqinchen2025@gmail.com
 
 ## 📄 授權條款
 
 本專案採用 MIT 授權條款。詳見 [LICENSE](LICENSE) 檔案。
 
----
+***
 
 <div align="center">
   <h3>🛡️ 為更安全的數位身份驗證而努力</h3>
   <p><strong>侵國侵城 AI 安全團隊</strong> © 2025</p>
-  <p>🏆 <em>2025 創新伺服器大賽參賽作品</em></p>
+  <p>🏆 <em>2025 InnoServe 創新伺服器大賽參賽作品</em></p>
+  <p>🎯 <em>專業的 eKYC 安全測試解決方案</em></p>
   
-  [![GitHub Stars](https://img.shields.io/github/stars/AngelaHan1129/qinguoqinchen?style=social)](https://github.com/AngelaHan1129/qinguoqinchen/stargazers)
-  [![GitHub Forks](https://img.shields.io/github/forks/AngelaHan1129/qinguoqinchen?style=social)](https://github.com/AngelaHan1129/qinguoqinchen/network/members)
-  [![GitHub Issues](https://img.shields.io/github/issues/AngelaHan1129/qinguoqinchen)](https://github.com/AngelaHan1129/qinguoqinchen/issues)
-</div>
-
-# 專案結構
-```text
-src/
-├── main.js                 # 簡化後的啟動檔案
-├── config/
-│   ├── app.config.js       # 應用程式設定
-│   ├── swagger.config.js   # Swagger 設定
-│   └── database.config.js  # 資料庫設定
-├── services/
-│   ├── AppService.js       # 應用程式服務
-│   ├── HealthService.js    # 健康檢查服務
-│   ├── AttackService.js    # 攻擊向量服務
-│   ├── GeminiService.js    # Gemini AI 服務
-│   ├── GrokService.js      # Grok AI 服務
-│   ├── VertexAIService.js  # Vertex AI 服務
-│   ├── RagService.js       # RAG 服務
-│   └── DatabaseService.js  # 資料庫服務
-├── middleware/
-│   ├── PerformanceMiddleware.js
-│   └──SecurityMiddleware.js
-├── routes/
-│   ├── index.js            # 路由統一註冊
-│   ├── system.routes.js    # 系統相關路由
-│   ├── ai.routes.js        # AI 相關路由
-│   ├── rag.routes.js       # RAG 相關路由
-│   └── database.routes.js  # 資料庫相關路由
-├── utils/
-│   ├── logger.js           # 日誌工具
-│   ├── errorHandler.js     # 錯誤處理
-│   └── validation.js       # 輸入驗證
-└── factories/
-    └── ServiceFactory.js   # 服務工廠
-```
+  ![GitHub Stars](https://img.shields.io/github/stars/AngelaHan1129/qinguohttps://github.com/AngelaHan1129/qingu.shields.io/github/forks/AngelaHan1.com/AngelaHan1129/qinguoqinio/github/issues/AngelaHan1129/qinguhttps://github.com/AngelaHan1129/qingus.io/github/license/AngelaHan1129/qinguHan1129/qinguoqinchen/blob/main/用侵國侵城) **AI 滲透測試系統，體驗最先進的 eKYC 安全評估技術！**
