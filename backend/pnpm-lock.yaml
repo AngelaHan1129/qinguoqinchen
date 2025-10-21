@@ -107,6 +107,9 @@ importers:
       neo4j-driver:
         specifier: ^6.0.0
         version: 6.0.0
+      node-fetch:
+        specifier: ^2.7.0
+        version: 2.7.0
       openai:
         specifier: ^6.3.0
         version: 6.3.0(ws@8.18.3)

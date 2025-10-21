@@ -42,7 +42,7 @@ async function bootstrap() {
 
     console.log(`✅ 系統啟動成功！埠口：${port}`);
     console.log(`📍 主頁: http://localhost:${port}`);
-    console.log(`📚 API 文檔: http://localhost:${port}/api/docs`); // 新增這行
+    console.log(`📚 API 文檔: http://localhost:${port}/api/docs`);
     console.log(`🎯 健康檢查: http://localhost:${port}/health`);
 
   } catch (error) {

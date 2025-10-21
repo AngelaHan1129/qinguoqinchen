@@ -3,6 +3,7 @@ const ErrorHandler = require('../utils/errorHandler');
 const Logger = require('../utils/logger');
 const SwaggerConfig = require('../config/swagger.config');
 const RAGRoutes = require('./rag.routes');
+const AIRoutes = require('./ai.routes');
 
 class RouteManager {
     static registerAllRoutes(app, services) {
@@ -23,6 +24,9 @@ class RouteManager {
 
             // 註冊 RAG 路由
             RAGRoutes.register(app, services);
+
+            // 註冊 AI 路由
+            AIRoutes.register(app, services);
 
             // 設置錯誤處理
             RouteManager.setupErrorHandling(app);

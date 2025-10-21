@@ -286,7 +286,7 @@ ${vectorDescriptions}
         try {
             console.log('📚 Gemini AI 基於上下文生成回應...');
 
-            const model = this.ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const model = this.ai.getGenerativeModel({ model: '5-flash' });
 
             const context = relevantChunks
                 .map(chunk => `[文件 ${chunk.chunkIndex}] ${chunk.content}`)

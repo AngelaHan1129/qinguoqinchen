@@ -253,7 +253,7 @@ class SystemRoutes {
                 },
 
                 ai: {
-                    gemini: { configured: !!process.env.GEMINI_API_KEY, model: 'gemini-2.0-flash-exp' },
+                    gemini: { configured: !!process.env.GEMINI_API_KEY, model: 'gemini-2.5-flash' },
                     grok: { configured: !!process.env.XAI_API_KEY, model: 'grok-beta' },
                     vertexAI: { configured: !!process.env.GOOGLE_CLOUD_PROJECT_ID, location: process.env.VERTEX_AI_LOCATION }
                 },

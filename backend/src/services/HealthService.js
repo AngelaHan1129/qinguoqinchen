@@ -102,7 +102,7 @@ class HealthService {
             geminiAI: {
                 configured: !!process.env.GEMINI_API_KEY,
                 status: process.env.GEMINI_API_KEY ? 'ready' : 'not-configured',
-                model: 'gemini-2.0-flash-exp',
+                model: 'gemini-2.5-flash',
                 capabilities: ['text-generation', 'analysis', 'ekyc-evaluation']
             },
             grokAI: {
