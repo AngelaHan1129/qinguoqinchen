@@ -1,4 +1,3 @@
-基於你提供的 README 文檔，我會為你的「侵國侵城 AI 滲透測試系統」進行專業的修改和完善。以下是針對你專案的優化版本：
 
 
 # 🛡️ 侵國侵城 AI 滲透測試系統
@@ -812,7 +811,7 @@ npx playwright test tests/api/rag.routes.spec.js
 安裝 Allure 命令列工具：
 
 ```bash
-npm install -g allure-commandline
+pnpm install -g allure-commandline
 ```
 生成並開啟報告：
 
