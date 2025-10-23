@@ -265,6 +265,10 @@ qinguoqinchen/backend/
 │   │   └── PerformanceMiddleware.js # ⚡ 效能監控中間件
 │   └── factories/              # 🏭 工廠模式實作
 │       └── ServiceFactory.js   # 🔧 服務工廠 (依賴注入)
+├── sql/                        # 📁 新增：SQL 初始化檔案目錄
+│   ├── 001_init_extensions.sql  # pgvector 擴展安裝
+│   ├── 002_create_tables.sql    # 資料表建立
+│   └── 003_create_indexes.sql   # 索引建立
 ├── uploads/                    # 📁 檔案上傳目錄
 ├── logs/                       # 📊 系統日誌目錄
 ├── package.json               # 📦 Node.js 專案配置
@@ -781,3 +785,46 @@ curl http://localhost:7939/system/info
   <p>🎯 <em>專業的 eKYC 安全測試解決方案</em></p>
   
   ![GitHub Stars](https://img.shields.io/github/stars/AngelaHan1129/qinguohttps://github.com/AngelaHan1129/qingu.shields.io/github/forks/AngelaHan1.com/AngelaHan1129/qinguoqinio/github/issues/AngelaHan1129/qinguhttps://github.com/AngelaHan1129/qingus.io/github/license/AngelaHan1129/qinguHan1129/qinguoqinchen/blob/main/用侵國侵城) **AI 滲透測試系統，體驗最先進的 eKYC 安全評估技術！**
+
+
+  # docker連線到pgvecto操作資料庫
+  ```bash
+   docker exec -it cbecf761035a psql -U admin -d qinguoqinchen_ai
+  ```
+
+# 使用步驟
+1. 執行測試
+根據您的後端專案結構，執行不同類型的測試：
+
+bash
+# 執行所有測試
+npx playwright test
+
+# 執行特定專案
+npx playwright test --project=unit
+npx playwright test --project=e2e
+
+# 執行特定測試檔案
+npx playwright test tests/api/rag.routes.spec.js
+2. 生成 Allure 報告
+測試執行完成後，結果檔案會生成在 allure-results 目錄中 。​
+
+安裝 Allure 命令列工具：
+
+```bash
+npm install -g allure-commandline
+```
+生成並開啟報告：
+
+```bash
+# 生成報告
+allure generate allure-results -o allure-report
+
+# 開啟報告
+allure open allure-report
+```
+或者使用一行命令直接開啟：
+
+```bash
+allure serve allure-results
+```

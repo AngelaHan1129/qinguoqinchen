@@ -1,24 +1,30 @@
-// src/services/RAGService.js - 整合專用向量服務的完整版本
+// src/services/RAGService.js - 修正版本（整合 pgvector + 錯誤修正）
+const { Pool } = require('pg');
+
 class RAGService {
     constructor(databaseService, geminiService, embeddingService) {
         this.db = databaseService;
         this.gemini = geminiService;
         this.embedding = embeddingService;
 
-        // 內建知識庫（使用 Map 存儲）
+        // 雙重存儲：記憶體快取 + pgvector 資料庫
         this.knowledgeBase = new Map();
-
-        // 向量服務狀態
+        this.useDatabase = !!process.env.DATABASE_URL;
         this.vectorServiceReady = false;
 
         // 初始化
         this.initializeService();
 
-        console.log('✅ RAG 服務初始化成功（整合專用向量服務）');
+        console.log('✅ RAG 服務初始化成功（完整整合版本）');
     }
 
     async initializeService() {
         try {
+            // 初始化 pgvector 資料庫
+            if (this.useDatabase) {
+                await this.initializePgVector();
+            }
+
             // 檢查向量服務狀態
             const healthCheck = await this.embedding.checkHealth();
 
@@ -26,6 +32,9 @@ class RAGService {
                 this.vectorServiceReady = true;
                 console.log('🎯 向量服務連接成功:', healthCheck.model);
                 console.log(`📐 向量維度: ${healthCheck.dimension}`);
+
+                // 載入現有的法律文件到記憶體快取
+                await this.loadExistingDocuments();
 
                 // 初始化內建知識庫
                 await this.initializeKnowledgeBase();
@@ -46,6 +55,132 @@ class RAGService {
             console.error('❌ RAG 服務初始化失敗:', error.message);
             console.warn('將使用內建模擬知識庫');
             this.initializeMockKnowledgeBase();
+        }
+    }
+
+    async initializePgVector() {
+        try {
+            this.pool = new Pool({
+                connectionString: process.env.DATABASE_URL,
+                max: 20,
+                idleTimeoutMillis: 30000,
+                connectionTimeoutMillis: 2000,
+            });
+
+            // 測試連接
+            const client = await this.pool.connect();
+
+            // 確保 pgvector 擴展存在
+            await client.query('CREATE EXTENSION IF NOT EXISTS vector');
+
+            // 檢查表是否存在，如果不存在則創建
+            const tableExists = await client.query(`
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'legal_documents'
+                );
+            `);
+
+            if (!tableExists.rows[0].exists) {
+                console.log('📄 創建 legal_documents 表...');
+                await this.createLegalTables(client);
+            }
+
+            client.release();
+            console.log('✅ pgvector 資料庫初始化成功');
+
+        } catch (error) {
+            console.error('❌ pgvector 初始化失敗:', error.message);
+            this.useDatabase = false;
+        }
+    }
+
+    async createLegalTables(client) {
+        const createTableSQL = `
+            CREATE TABLE IF NOT EXISTS legal_documents (
+                id VARCHAR(255) PRIMARY KEY,
+                document_id VARCHAR(255) NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                embedding vector(1024),
+                document_type VARCHAR(100),
+                jurisdiction VARCHAR(50),
+                law_category VARCHAR(100),
+                article_number VARCHAR(50),
+                effective_date DATE,
+                chunk_index INTEGER DEFAULT 0,
+                chunk_type VARCHAR(50),
+                metadata JSONB,
+                source VARCHAR(255),
+                language VARCHAR(10) DEFAULT 'zh-TW',
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_legal_documents_embedding 
+                ON legal_documents USING hnsw (embedding vector_cosine_ops);
+            CREATE INDEX IF NOT EXISTS idx_legal_documents_document_id ON legal_documents(document_id);
+            CREATE INDEX IF NOT EXISTS idx_legal_documents_document_type ON legal_documents(document_type);
+            CREATE INDEX IF NOT EXISTS idx_legal_documents_jurisdiction ON legal_documents(jurisdiction);
+            CREATE INDEX IF NOT EXISTS idx_legal_documents_law_category ON legal_documents(law_category);
+
+            CREATE TABLE IF NOT EXISTS user_queries (
+                id SERIAL PRIMARY KEY,
+                query_text TEXT NOT NULL,
+                query_embedding vector(1024),
+                response_text TEXT,
+                retrieved_documents TEXT[],
+                confidence_score DECIMAL(3,2),
+                processing_time INTEGER,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_user_queries_embedding 
+                ON user_queries USING hnsw (query_embedding vector_cosine_ops);
+        `;
+
+        await client.query(createTableSQL);
+        console.log('✅ legal_documents 表創建完成');
+    }
+
+    async loadExistingDocuments() {
+        if (!this.useDatabase || !this.pool) return;
+
+        try {
+            console.log('📚 載入現有法律文件到記憶體快取...');
+
+            const result = await this.pool.query(`
+                SELECT id, document_id, title, content, document_type, 
+                       jurisdiction, law_category, metadata, created_at
+                FROM legal_documents 
+                ORDER BY created_at DESC
+                LIMIT 1000
+            `);
+
+            let loadedCount = 0;
+            for (const row of result.rows) {
+                this.knowledgeBase.set(row.id, {
+                    id: row.id,
+                    documentId: row.document_id,
+                    title: row.title,
+                    content: row.content,
+                    category: 'legal',
+                    metadata: {
+                        ...row.metadata,
+                        documentType: row.document_type,
+                        jurisdiction: row.jurisdiction,
+                        lawCategory: row.law_category,
+                        source: 'pgvector',
+                        createdAt: row.created_at
+                    }
+                });
+                loadedCount++;
+            }
+
+            console.log(`✅ 載入 ${loadedCount} 個法律文件到記憶體快取`);
+
+        } catch (error) {
+            console.error('❌ 載入現有文件失敗:', error.message);
         }
     }
 
@@ -203,51 +338,44 @@ eKYC系統業者若違反本法規定，致當事人權益受損害，應負損�
         });
     }
 
-    // 取得系統統計
-    getStats() {
-        const totalDocuments = new Set([...this.knowledgeBase.values()].map(doc =>
-            doc.documentId || doc.id
-        )).size;
-
-        return {
-            documentsCount: totalDocuments,
-            chunksCount: this.knowledgeBase.size,
-            status: this.vectorServiceReady ? 'ready' : 'mock',
-            mode: this.vectorServiceReady ? 'enhanced' : 'fallback',
-            vectorService: this.vectorServiceReady ? this.embedding.getModelInfo() : null,
-            features: this.vectorServiceReady ? [
-                'Professional Legal Vector Service',
-                'Smart Text Chunking',
-                'Batch Processing',
-                'Traditional Chinese Optimized',
-                'Cosine Similarity Search'
-            ] : [
-                'Mock Knowledge Base',
-                'Keyword-based Search',
-                'Fallback Processing'
-            ],
-            version: '2.0.0',
-            lastUpdated: new Date().toISOString()
-        };
-    }
-
-    // 真實的 RAG 問答
+    // 🔧 修正後的 RAG 問答（主要修正點）
     async askQuestion(question, filters = {}) {
         try {
             console.log('🤖 RAG 問答處理:', question.substring(0, 50) + '...');
 
+            const startTime = Date.now();
             let relevantDocs = [];
             let mode = 'Direct';
+            let questionEmbedding = null; // ← 🔧 明確初始化
 
             if (this.vectorServiceReady) {
-                // 使用向量服務進行檢索
-                const questionEmbedding = await this.embedding.generateEmbedding(question, {
-                    instruction: 'query: ',
-                    normalize: true
-                });
+                try {
+                    // 🔧 生成問題向量 - 加上錯誤處理
+                    questionEmbedding = await this.embedding.generateEmbedding(question, {
+                        instruction: 'query: ',
+                        normalize: true
+                    });
 
-                relevantDocs = this.searchByVector(questionEmbedding, filters);
-                mode = relevantDocs.length > 0 ? 'RAG' : 'Direct';
+                    console.log('✅ 問題向量生成成功');
+
+                    // 多重檢索策略
+                    const [memoryResults, dbResults] = await Promise.all([
+                        this.searchMemoryByVector(questionEmbedding, filters),
+                        this.searchDatabaseByVector(questionEmbedding, filters)
+                    ]);
+
+                    // 合併和去重檢索結果
+                    relevantDocs = this.mergeSearchResults(memoryResults, dbResults);
+                    mode = relevantDocs.length > 0 ? 'Legal-RAG' : 'Direct';
+
+                } catch (embeddingError) {
+                    console.error('❌ 向量生成失敗:', embeddingError.message);
+                    console.log('🔄 切換到關鍵詞檢索模式');
+
+                    // 如果向量生成失敗，使用關鍵詞檢索
+                    relevantDocs = this.searchByKeywords(question, filters);
+                    mode = relevantDocs.length > 0 ? 'Keyword-RAG' : 'Direct';
+                }
 
             } else {
                 // 使用關鍵詞檢索
@@ -260,9 +388,14 @@ eKYC系統業者若違反本法規定，致當事人權益受損害，應負損�
             let finalAnswer;
             if (relevantDocs.length > 0) {
                 // RAG 模式：基於檢索的增強生成
-                const context = relevantDocs.map(doc =>
-                    `【${doc.title}】\n${doc.content}`
-                ).join('\n\n');
+                const context = relevantDocs.map(doc => {
+                    const docInfo = doc.metadata?.documentType ?
+                        ` [${doc.metadata.documentType} - ${doc.metadata.jurisdiction || 'TW'}]` : '';
+                    const articleInfo = doc.metadata?.articleNumber ?
+                        ` 第${doc.metadata.articleNumber}條` : '';
+
+                    return `【${doc.title}${docInfo}${articleInfo}】\n${doc.content}`;
+                }).join('\n\n');
 
                 const ragPrompt = `你是專業的 eKYC 安全專家，專精於台灣法規遵循。請基於以下相關資料回答問題：
 
@@ -289,11 +422,27 @@ ${question}
                 finalAnswer = await this.callGeminiAI(directPrompt);
             }
 
+            const processingTime = Date.now() - startTime;
+
+            // 🔧 記錄查詢歷史 - 只有當 questionEmbedding 存在時才記錄
+            if (this.useDatabase && this.vectorServiceReady && questionEmbedding) {
+                try {
+                    await this.logUserQuery(question, questionEmbedding, finalAnswer,
+                        relevantDocs.map(d => d.id), this.calculateConfidence(relevantDocs), processingTime);
+                } catch (logError) {
+                    console.warn('⚠️ 記錄查詢歷史失敗:', logError.message);
+                }
+            }
+
             const sources = relevantDocs.map(doc => ({
                 id: doc.id || doc.documentId,
                 title: doc.title,
                 similarity: doc.similarity,
                 category: doc.category,
+                documentType: doc.metadata?.documentType,
+                jurisdiction: doc.metadata?.jurisdiction,
+                lawCategory: doc.metadata?.lawCategory,
+                articleNumber: doc.metadata?.articleNumber,
                 source: doc.metadata?.source
             }));
 
@@ -303,7 +452,11 @@ ${question}
                 confidence: this.calculateConfidence(relevantDocs),
                 mode,
                 documentsUsed: relevantDocs.length,
+                legalDocuments: sources.filter(s => s.documentType),
+                processingTime,
                 vectorService: this.vectorServiceReady ? this.embedding.getModelInfo() : null,
+                databaseUsed: this.useDatabase,
+                embeddingGenerated: !!questionEmbedding, // ← 🔧 新增：指示是否成功生成向量
                 timestamp: new Date().toISOString()
             };
 
@@ -321,8 +474,74 @@ ${question}
         }
     }
 
-    // 向量檢索
-    searchByVector(questionEmbedding, filters = {}) {
+    // pgvector 向量檢索
+    async searchDatabaseByVector(questionEmbedding, filters = {}, limit = 5) {
+        if (!this.useDatabase || !this.pool) {
+            return [];
+        }
+
+        try {
+            const queryVector = `[${questionEmbedding.join(',')}]`;
+
+            let whereClause = '';
+            let paramIndex = 3;
+            const queryParams = [queryVector, limit];
+
+            // 添加過濾條件
+            if (filters.documentType && filters.documentType !== 'legal') {
+                return []; // 如果過濾條件不是 legal，返回空結果
+            }
+
+            if (filters.jurisdiction) {
+                whereClause += ` WHERE jurisdiction = $${paramIndex}`;
+                queryParams.push(filters.jurisdiction);
+                paramIndex++;
+            }
+
+            if (filters.lawCategory) {
+                whereClause += whereClause ? ` AND law_category = $${paramIndex}` : ` WHERE law_category = $${paramIndex}`;
+                queryParams.push(filters.lawCategory);
+                paramIndex++;
+            }
+
+            const result = await this.pool.query(`
+                SELECT 
+                    id, document_id, title, content, document_type, 
+                    jurisdiction, law_category, article_number, metadata,
+                    1 - (embedding <=> $1) as similarity
+                FROM legal_documents 
+                ${whereClause}
+                ORDER BY embedding <=> $1
+                LIMIT $2
+            `, queryParams);
+
+            return result.rows
+                .filter(row => row.similarity > 0.3)
+                .map(row => ({
+                    id: row.id,
+                    documentId: row.document_id,
+                    title: row.title,
+                    content: row.content,
+                    category: 'legal',
+                    similarity: parseFloat(row.similarity),
+                    metadata: {
+                        ...row.metadata,
+                        documentType: row.document_type,
+                        jurisdiction: row.jurisdiction,
+                        lawCategory: row.law_category,
+                        articleNumber: row.article_number,
+                        source: 'pgvector'
+                    }
+                }));
+
+        } catch (error) {
+            console.error('❌ pgvector 檢索失敗:', error.message);
+            return [];
+        }
+    }
+
+    // 記憶體向量檢索
+    searchMemoryByVector(questionEmbedding, filters = {}) {
         const relevantDocs = [];
 
         for (const [id, doc] of this.knowledgeBase) {
@@ -332,8 +551,11 @@ ${question}
 
             // 應用過濾條件
             let adjustedSimilarity = similarity;
-            if (filters.documentType && doc.category !== filters.documentType) {
-                adjustedSimilarity *= 0.5;
+            if (filters.documentType && filters.documentType === 'legal' && doc.category !== 'legal') {
+                continue; // 跳過非法律文件
+            }
+            if (filters.jurisdiction && doc.metadata?.jurisdiction !== filters.jurisdiction) {
+                adjustedSimilarity *= 0.7;
             }
 
             if (adjustedSimilarity > 0.3) {
@@ -347,6 +569,24 @@ ${question}
         return relevantDocs
             .sort((a, b) => b.similarity - a.similarity)
             .slice(0, 5);
+    }
+
+    // 合併檢索結果
+    mergeSearchResults(memoryResults, dbResults) {
+        const combined = [...memoryResults, ...dbResults];
+        const uniqueResults = new Map();
+
+        // 去重並保留最高相似度的結果
+        for (const doc of combined) {
+            const key = doc.id || doc.documentId;
+            if (!uniqueResults.has(key) || uniqueResults.get(key).similarity < doc.similarity) {
+                uniqueResults.set(key, doc);
+            }
+        }
+
+        return Array.from(uniqueResults.values())
+            .sort((a, b) => b.similarity - a.similarity)
+            .slice(0, 8);
     }
 
     // 關鍵詞檢索（備用方案）
@@ -378,8 +618,8 @@ ${question}
             }
 
             // 應用過濾條件
-            if (filters.documentType && doc.category !== filters.documentType) {
-                relevanceScore *= 0.5;
+            if (filters.documentType && filters.documentType === 'legal' && doc.category !== 'legal') {
+                continue;
             }
 
             if (relevanceScore > 0.1) {
@@ -395,46 +635,27 @@ ${question}
             .slice(0, 3);
     }
 
-    // 呼叫 Gemini AI
-    async callGeminiAI(prompt) {
+    // 記錄用戶查詢
+    async logUserQuery(queryText, queryEmbedding, responseText, documentIds, confidence, processingTime) {
+        if (!this.useDatabase || !this.pool) return;
+
         try {
-            if (!process.env.GEMINI_API_KEY) {
-                throw new Error('GEMINI_API_KEY 未設定');
-            }
-
-            const { GoogleGenerativeAI } = require('@google/generative-ai');
-            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            return response.text();
-
+            await this.pool.query(`
+                INSERT INTO user_queries (
+                    query_text, query_embedding, response_text, 
+                    retrieved_documents, confidence_score, processing_time
+                ) VALUES ($1, $2, $3, $4, $5, $6)
+            `, [
+                queryText,
+                `[${queryEmbedding.join(',')}]`,
+                responseText,
+                documentIds,
+                confidence,
+                processingTime
+            ]);
         } catch (error) {
-            console.error('❌ Gemini AI 呼叫失敗:', error.message);
-            throw error;
+            console.warn('⚠️ 記錄查詢歷史失敗:', error.message);
         }
-    }
-
-    // 餘弦相似度計算
-    calculateCosineSimilarity(vecA, vecB) {
-        if (!vecA || !vecB || vecA.length !== vecB.length) {
-            return 0;
-        }
-
-        let dotProduct = 0;
-        let normA = 0;
-        let normB = 0;
-
-        for (let i = 0; i < vecA.length; i++) {
-            dotProduct += vecA[i] * vecB[i];
-            normA += vecA[i] * vecA[i];
-            normB += vecB[i] * vecB[i];
-        }
-
-        if (normA === 0 || normB === 0) return 0;
-
-        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     }
 
     // 文件攝取（整合向量服務）
@@ -537,20 +758,136 @@ ${question}
             console.log('⚖️ 法律文件攝取:', {
                 title: legalData.title,
                 documentType: legalData.documentType,
-                jurisdiction: legalData.jurisdiction
+                jurisdiction: legalData.jurisdiction,
+                useDatabase: this.useDatabase
             });
 
-            const enrichedMetadata = {
-                ...legalData.metadata,
-                isLegal: true,
-                processedAt: new Date().toISOString(),
-                documentType: legalData.documentType,
-                jurisdiction: legalData.jurisdiction,
-                lawCategory: legalData.lawCategory,
-                category: 'legal'
+            const documentId = `legal_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+            if (!this.vectorServiceReady) {
+                throw new Error('向量服務不可用');
+            }
+
+            // 1. 智能法律文件分塊
+            const chunkingResult = await this.embedding.chunkText(legalData.content, {
+                chunkSize: 500,
+                overlap: 50
+            });
+
+            const chunks = chunkingResult.chunks;
+            console.log(`✂️ 法律文件分塊完成: ${chunks.length} 個片段`);
+
+            // 2. 批量生成向量
+            const chunkTexts = chunks.map(chunk => chunk.text);
+            const embeddings = await this.embedding.batchGenerateEmbeddings(chunkTexts, {
+                instruction: 'legal_passage: ', // 法律文件專用指令
+                normalize: true
+            });
+
+            // 3. 存儲到 pgvector 資料庫
+            let dbStorageSuccess = true;
+            if (this.useDatabase && this.pool) {
+                try {
+                    console.log('💾 存儲到 pgvector 資料庫...');
+
+                    // 使用事務確保資料一致性
+                    const client = await this.pool.connect();
+                    await client.query('BEGIN');
+
+                    const insertPromises = chunks.map(async (chunk, index) => {
+                        const chunkId = `${documentId}_chunk_${index}`;
+
+                        await client.query(`
+                            INSERT INTO legal_documents (
+                                id, document_id, title, content, embedding,
+                                document_type, jurisdiction, law_category, 
+                                article_number, effective_date, chunk_index, 
+                                chunk_type, metadata, source, language
+                            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                            ON CONFLICT (id) DO UPDATE SET
+                                content = EXCLUDED.content,
+                                embedding = EXCLUDED.embedding,
+                                updated_at = NOW()
+                        `, [
+                            chunkId,
+                            documentId,
+                            legalData.title,
+                            chunk.text,
+                            `[${embeddings[index].join(',')}]`,
+                            legalData.documentType || 'regulation',
+                            legalData.jurisdiction || 'TW',
+                            legalData.lawCategory || null,
+                            legalData.articleNumber || null,
+                            legalData.effectiveDate || null,
+                            index,
+                            chunk.type || 'paragraph',
+                            JSON.stringify({
+                                ...legalData.metadata,
+                                chunkInfo: chunk,
+                                source: 'user_upload',
+                                originalLength: chunkingResult.originalLength
+                            }),
+                            legalData.source || 'user_upload',
+                            'zh-TW'
+                        ]);
+                    });
+
+                    await Promise.all(insertPromises);
+                    await client.query('COMMIT');
+                    client.release();
+
+                    console.log('✅ pgvector 資料庫存儲完成');
+
+                } catch (dbError) {
+                    console.error('❌ pgvector 存儲失敗:', dbError.message);
+                    dbStorageSuccess = false;
+                }
+            }
+
+            // 4. 存儲到記憶體快取
+            chunks.forEach((chunk, index) => {
+                const chunkId = `${documentId}_chunk_${index}`;
+                this.knowledgeBase.set(chunkId, {
+                    id: chunkId,
+                    documentId,
+                    title: legalData.title,
+                    content: chunk.text,
+                    embedding: embeddings[index],
+                    category: 'legal',
+                    chunkInfo: chunk,
+                    metadata: {
+                        ...legalData.metadata,
+                        isLegal: true,
+                        documentType: legalData.documentType,
+                        jurisdiction: legalData.jurisdiction,
+                        lawCategory: legalData.lawCategory,
+                        articleNumber: legalData.articleNumber,
+                        effectiveDate: legalData.effectiveDate,
+                        source: 'pgvector',
+                        createdAt: new Date().toISOString()
+                    }
+                });
+            });
+
+            return {
+                success: true,
+                documentId,
+                chunksCreated: chunks.length,
+                totalCharacters: chunkingResult.originalLength,
+                chunkTypes: [...new Set(chunks.map(c => c.type))],
+                storageMode: this.useDatabase && dbStorageSuccess ? 'pgvector + memory' : 'memory only',
+                databaseStorage: dbStorageSuccess,
+                vectorService: this.embedding.getModelInfo(),
+                legalMetadata: {
+                    documentType: legalData.documentType,
+                    jurisdiction: legalData.jurisdiction,
+                    lawCategory: legalData.lawCategory,
+                    articleNumber: legalData.articleNumber
+                },
+                message: `法律文件攝取成功 (${this.useDatabase && dbStorageSuccess ? 'pgvector 資料庫' : '記憶體'}模式)`,
+                timestamp: new Date().toISOString()
             };
 
-            return await this.ingestDocument(legalData.content, enrichedMetadata);
         } catch (error) {
             console.error('❌ 法律文件攝取失敗:', error.message);
             throw error;
@@ -558,12 +895,11 @@ ${question}
     }
 
     // 搜尋文件
-    async searchDocuments({ query, limit = 10, threshold = 0.3, documentTypes, timeRange }) {
+    async searchDocuments({ query, limit = 10, threshold = 0.3, documentTypes, timeRange, jurisdiction, lawCategory }) {
         try {
             console.log('🔍 文件搜尋:', {
                 query: query.substring(0, 50),
-                limit,
-                threshold
+                limit, threshold, documentTypes, jurisdiction, lawCategory
             });
 
             let results = [];
@@ -574,16 +910,17 @@ ${question}
                     instruction: 'query: '
                 });
 
-                results = this.searchByVector(queryEmbedding, {
-                    documentTypes,
-                    threshold
-                }).slice(0, limit);
+                const filters = { documentTypes, threshold, jurisdiction, lawCategory };
+                const [memoryResults, dbResults] = await Promise.all([
+                    this.searchMemoryByVector(queryEmbedding, filters),
+                    this.searchDatabaseByVector(queryEmbedding, filters, limit)
+                ]);
+
+                results = this.mergeSearchResults(memoryResults, dbResults).slice(0, limit);
 
             } else {
                 // 關鍵詞搜尋
-                results = this.searchByKeywords(query, {
-                    documentTypes
-                }).slice(0, limit);
+                results = this.searchByKeywords(query, { documentTypes }).slice(0, limit);
             }
 
             return {
@@ -648,6 +985,33 @@ ${question}
                 };
             }
 
+            // 如果記憶體中沒有，嘗試從資料庫查詢
+            if (this.useDatabase && this.pool) {
+                const result = await this.pool.query(`
+                    SELECT * FROM legal_documents WHERE document_id = $1 OR id = $1
+                    ORDER BY chunk_index
+                `, [documentId]);
+
+                if (result.rows.length > 0) {
+                    const fullContent = result.rows.map(row => row.content).join('\n\n');
+                    return {
+                        id: documentId,
+                        title: result.rows[0].title,
+                        content: fullContent,
+                        category: 'legal',
+                        metadata: {
+                            documentType: result.rows[0].document_type,
+                            jurisdiction: result.rows[0].jurisdiction,
+                            lawCategory: result.rows[0].law_category,
+                            articleNumber: result.rows[0].article_number,
+                            source: 'pgvector'
+                        },
+                        chunksCount: result.rows.length,
+                        lastUpdated: result.rows[0].updated_at
+                    };
+                }
+            }
+
             throw new Error('文件不存在');
 
         } catch (error) {
@@ -663,8 +1027,8 @@ ${question}
 
             let deletedCount = 0;
 
+            // 從記憶體中刪除
             if (cascade) {
-                // 刪除文件的所有片段
                 for (const [chunkId, doc] of this.knowledgeBase) {
                     if (doc.documentId === documentId || doc.id === documentId) {
                         this.knowledgeBase.delete(chunkId);
@@ -672,10 +1036,23 @@ ${question}
                     }
                 }
             } else {
-                // 只刪除指定的片段
                 if (this.knowledgeBase.has(documentId)) {
                     this.knowledgeBase.delete(documentId);
                     deletedCount = 1;
+                }
+            }
+
+            // 從資料庫中刪除
+            if (this.useDatabase && this.pool) {
+                try {
+                    const result = await this.pool.query(`
+                        DELETE FROM legal_documents 
+                        WHERE ${cascade ? 'document_id = $1 OR id = $1' : 'id = $1'}
+                    `, [documentId]);
+
+                    console.log(`🗄️ 從資料庫刪除 ${result.rowCount} 條記錄`);
+                } catch (dbError) {
+                    console.error('❌ 資料庫刪除失敗:', dbError.message);
                 }
             }
 
@@ -753,7 +1130,86 @@ ${question}
         }
     }
 
+    // 取得系統統計
+    getStats() {
+        const memoryStats = {
+            memoryDocuments: new Set([...this.knowledgeBase.values()].map(doc =>
+                doc.documentId || doc.id
+            )).size,
+            memoryChunks: this.knowledgeBase.size,
+            legalDocuments: [...this.knowledgeBase.values()].filter(doc =>
+                doc.category === 'legal'
+            ).length
+        };
+
+        return {
+            ...memoryStats,
+            status: 'ready',
+            mode: this.useDatabase ? 'pgvector + memory' : 'memory only',
+            database: {
+                enabled: this.useDatabase,
+                connected: !!(this.pool),
+                type: 'PostgreSQL + pgvector'
+            },
+            vectorService: this.vectorServiceReady ? this.embedding.getModelInfo() : null,
+            features: [
+                'pgvector 持久化法律文件存儲',
+                '雙重向量檢索（記憶體+資料庫）',
+                '法律專用文件分析',
+                '多司法管轄區支援',
+                'Gemini AI 法律分析整合',
+                '查詢歷史記錄和分析',
+                '智能錯誤處理和降級'
+            ],
+            version: '4.1.0',
+            lastUpdated: new Date().toISOString()
+        };
+    }
+
     // === 輔助方法 ===
+
+    // 呼叫 Gemini AI
+    async callGeminiAI(prompt) {
+        try {
+            if (!process.env.GEMINI_API_KEY) {
+                throw new Error('GEMINI_API_KEY 未設定');
+            }
+
+            const { GoogleGenerativeAI } = require('@google/generative-ai');
+            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+            const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            return response.text();
+
+        } catch (error) {
+            console.error('❌ Gemini AI 呼叫失敗:', error.message);
+            throw error;
+        }
+    }
+
+    // 餘弦相似度計算
+    calculateCosineSimilarity(vecA, vecB) {
+        if (!vecA || !vecB || vecA.length !== vecB.length) {
+            return 0;
+        }
+
+        let dotProduct = 0;
+        let normA = 0;
+        let normB = 0;
+
+        for (let i = 0; i < vecA.length; i++) {
+            dotProduct += vecA[i] * vecB[i];
+            normA += vecA[i] * vecA[i];
+            normB += vecB[i] * vecB[i];
+        }
+
+        if (normA === 0 || normB === 0) return 0;
+
+        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
     generateMockAnswer(question) {
         const answers = {
             'ekyc': 'eKYC (電子化身分識別與核實) 是一種數位身分驗證技術，使用 AI 和生物識別技術來驗證用戶身分。',
@@ -779,8 +1235,9 @@ ${question}
 
         const avgSimilarity = relevantDocs.reduce((sum, doc) => sum + (doc.similarity || 0.5), 0) / relevantDocs.length;
         const docCountFactor = Math.min(relevantDocs.length / 5, 1);
+        const legalDocFactor = relevantDocs.filter(d => d.category === 'legal').length / relevantDocs.length;
 
-        return Math.round((avgSimilarity * 0.7 + docCountFactor * 0.3) * 100) / 100;
+        return Math.round((avgSimilarity * 0.6 + docCountFactor * 0.2 + legalDocFactor * 0.2) * 100) / 100;
     }
 
     chunkDocument(text, chunkSize = 500, overlap = 50) {

@@ -1,0 +1,114 @@
+# team-pgvector-setup.yml - 侵國侵城 AI 團隊專用 pgvector 設置
+version: '3.8'
+
+services:
+  # pgvector 資料庫
+  qinguoqinchen-postgres:
+    image: pgvector/pgvector:pg17
+    container_name: qinguoqinchen-pgvector
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: qinguoqinchen123
+      POSTGRES_DB: qinguoqinchen_ai
+      TZ: Asia/Taipei
+      # 設定記憶體使用量
+      POSTGRES_SHARED_BUFFERS: 256MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 1GB
+    ports:
+      - "5847:5432"
+    volumes:
+      - qinguoqinchen_pgvector_data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro
+      - ./backups:/var/backups
+    restart: always
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "admin", "-d", "qinguoqinchen_ai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: >
+      postgres 
+      -c max_connections=200
+      -c shared_preload_libraries=vector
+      -c log_statement=all
+      -c log_min_duration_statement=1000
+    networks:
+      - qinguoqinchen-network
+
+  # pgAdmin 管理介面
+  qinguoqinchen-pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: qinguoqinchen-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@qinguoqinchen.tw
+      PGADMIN_DEFAULT_PASSWORD: qinguoqinchen123
+      PGADMIN_LISTEN_PORT: 80
+    ports:
+      - "8080:80"
+    volumes:
+      - qinguoqinchen_pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      qinguoqinchen-postgres:
+        condition: service_healthy
+    restart: always
+    networks:
+      - qinguoqinchen-network
+
+  # Python 向量服務
+  qinguoqinchen-vector-service:
+    build: 
+      context: ./python-ai
+      dockerfile: Dockerfile
+    container_name: qinguoqinchen-vector-service
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_NAME=qinguoqinchen-legal-embedder-v1.0
+      - CACHE_DIR=/app/models
+      - MAX_LENGTH=512
+      - EMBEDDING_DIMENSION=1024
+      - BATCH_SIZE=16
+      - DEVICE=cpu
+      - LOG_LEVEL=info
+    volumes:
+      - qinguoqinchen_models_cache:/app/models
+      - ./python-ai/logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
+    restart: always
+    networks:
+      - qinguoqinchen-network
+
+volumes:
+  qinguoqinchen_pgvector_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres
+  qinguoqinchen_pgadmin_data:
+    driver: local
+  qinguoqinchen_models_cache:
+    driver: local
+
+networks:
+  qinguoqinchen-network:
+    driver: bridge
+    name: qinguoqinchen-ai-network
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.100.0/24
+          gateway: 192.168.100.1
+
+# 健康檢查和監控
+x-healthcheck-config: &healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s

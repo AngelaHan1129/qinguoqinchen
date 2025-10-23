@@ -978,6 +978,354 @@ class SwaggerConfig {
                             }
                         }
                     }
+                },
+                // 在 paths 物件中新增這些端點
+                '/rag/compliance/crawl': {
+                    post: {
+                        tags: ['Compliance'],
+                        summary: '爬取法規標準資料',
+                        description: '自動爬取 ISO 27001、OWASP、全國法規資料庫、IEC 62443 等標準',
+                        requestBody: {
+                            required: false,
+                            content: {
+                                'application/json': {
+                                    schema: {
+                                        $ref: '#/components/schemas/ComplianceCrawlRequest'
+                                    },
+                                    examples: {
+                                        allSources: {
+                                            summary: '爬取所有標準',
+                                            value: {
+                                                sources: ['ISO_27001', 'OWASP_TOP10', 'TW_LEGAL_DB', 'IEC_62443'],
+                                                forceUpdate: true
+                                            }
+                                        },
+                                        specificSources: {
+                                            summary: '指定標準爬取',
+                                            value: {
+                                                sources: ['ISO_27001', 'OWASP_TOP10'],
+                                                forceUpdate: false
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: {
+                                description: '法規資料爬取成功',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'object',
+                                            properties: {
+                                                success: { type: 'boolean', example: true },
+                                                message: { type: 'string', example: '法規資料爬取完成' },
+                                                results: {
+                                                    type: 'object',
+                                                    properties: {
+                                                        iso27001: {
+                                                            type: 'array',
+                                                            items: { type: 'object' },
+                                                            description: 'ISO 27001 匯入結果'
+                                                        },
+                                                        owasp: {
+                                                            type: 'array',
+                                                            items: { type: 'object' },
+                                                            description: 'OWASP Top 10 匯入結果'
+                                                        },
+                                                        taiwan: {
+                                                            type: 'array',
+                                                            items: { type: 'object' },
+                                                            description: '全國法規資料庫匯入結果'
+                                                        },
+                                                        iec62443: {
+                                                            type: 'array',
+                                                            items: { type: 'object' },
+                                                            description: 'IEC 62443 匯入結果'
+                                                        }
+                                                    }
+                                                },
+                                                summary: {
+                                                    type: 'object',
+                                                    properties: {
+                                                        totalSources: { type: 'integer', example: 4 },
+                                                        totalDocuments: { type: 'integer', example: 156 },
+                                                        timestamp: { type: 'string', format: 'date-time' }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            500: { description: '爬取失敗' }
+                        }
+                    }
+                },
+
+                '/rag/pentest/import': {
+                    post: {
+                        tags: ['PenTest'],
+                        summary: '匯入滲透測試報告',
+                        description: '支援 Nessus、Nmap、Burp Suite、ZAP 等工具報告',
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'multipart/form-data': {
+                                    schema: {
+                                        type: 'object',
+                                        required: ['report'],
+                                        properties: {
+                                            report: {
+                                                type: 'string',
+                                                format: 'binary',
+                                                description: '滲透測試報告檔案 (JSON/XML 格式)'
+                                            },
+                                            toolType: {
+                                                type: 'string',
+                                                enum: ['nessus', 'nmap', 'burp', 'zap', 'metasploit', 'wireshark'],
+                                                example: 'nessus',
+                                                description: '掃描工具類型'
+                                            },
+                                            targetSystem: {
+                                                type: 'string',
+                                                example: 'production_web_server',
+                                                description: '目標系統描述'
+                                            },
+                                            testDate: {
+                                                type: 'string',
+                                                format: 'date',
+                                                example: '2025-10-22',
+                                                description: '測試執行日期'
+                                            },
+                                            metadata: {
+                                                type: 'string',
+                                                example: '{"tester":"security_team","scope":"external"}',
+                                                description: 'JSON 格式的額外資訊'
+                                            }
+                                        }
+                                    },
+                                    examples: {
+                                        nessusUpload: {
+                                            summary: 'Nessus 掃描報告',
+                                            value: {
+                                                toolType: 'nessus',
+                                                targetSystem: '銀行 eKYC 系統',
+                                                testDate: '2025-10-22',
+                                                metadata: '{"scope":"web_application","duration":"4_hours"}'
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: {
+                                description: '滲透測試報告匯入成功',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'object',
+                                            properties: {
+                                                success: { type: 'boolean', example: true },
+                                                message: { type: 'string', example: '滲透測試報告匯入成功' },
+                                                results: {
+                                                    type: 'object',
+                                                    properties: {
+                                                        totalFindings: { type: 'integer', example: 23 },
+                                                        severityBreakdown: {
+                                                            type: 'object',
+                                                            properties: {
+                                                                critical: { type: 'integer', example: 2 },
+                                                                high: { type: 'integer', example: 5 },
+                                                                medium: { type: 'integer', example: 12 },
+                                                                low: { type: 'integer', example: 4 }
+                                                            }
+                                                        },
+                                                        complianceImpact: {
+                                                            type: 'object',
+                                                            properties: {
+                                                                affectedFrameworks: {
+                                                                    type: 'array',
+                                                                    items: { type: 'string' },
+                                                                    example: ['ISO_27001', 'OWASP_TOP10']
+                                                                },
+                                                                averageRiskScore: { type: 'number', example: 7.5 }
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                timestamp: { type: 'string', format: 'date-time' }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            400: { description: '請求參數錯誤' },
+                            500: { description: '匯入失敗' }
+                        }
+                    }
+                },
+
+                '/rag/forensics/import': {
+                    post: {
+                        tags: ['Forensics'],
+                        summary: '匯入數位取證證據',
+                        description: '匯入數位取證證據並進行向量化分析',
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'multipart/form-data': {
+                                    schema: {
+                                        type: 'object',
+                                        required: ['evidence'],
+                                        properties: {
+                                            evidence: {
+                                                type: 'string',
+                                                format: 'binary',
+                                                description: '取證證據檔案 (JSON 格式)'
+                                            },
+                                            evidenceType: {
+                                                type: 'string',
+                                                enum: ['disk_image', 'memory_dump', 'network_capture', 'log_file'],
+                                                example: 'disk_image',
+                                                description: '證據類型'
+                                            },
+                                            caseId: {
+                                                type: 'string',
+                                                example: 'CASE-2025-001',
+                                                description: '案件編號'
+                                            },
+                                            investigator: {
+                                                type: 'string',
+                                                example: 'forensics_team',
+                                                description: '調查人員'
+                                            },
+                                            metadata: {
+                                                type: 'string',
+                                                example: '{"hash":"sha256:abc123","custody":"chain_maintained"}',
+                                                description: 'JSON 格式的取證 metadata'
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: {
+                                description: '數位取證證據匯入成功',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'object',
+                                            properties: {
+                                                success: { type: 'boolean', example: true },
+                                                message: { type: 'string', example: '數位取證證據匯入成功' },
+                                                results: {
+                                                    type: 'object',
+                                                    properties: {
+                                                        totalItems: { type: 'integer', example: 156 },
+                                                        evidenceTypes: {
+                                                            type: 'array',
+                                                            items: { type: 'string' },
+                                                            example: ['disk_image', 'log_file']
+                                                        },
+                                                        legalRelevanceScore: { type: 'number', example: 0.87 }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+
+                '/rag/compliance/report': {
+                    post: {
+                        tags: ['Compliance'],
+                        summary: '生成合規分析報告',
+                        description: '基於滲透測試和取證資料生成 PDF/Excel 合規報告',
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'application/json': {
+                                    schema: {
+                                        type: 'object',
+                                        properties: {
+                                            findingIds: {
+                                                type: 'array',
+                                                items: { type: 'string' },
+                                                example: ['finding_001', 'finding_002'],
+                                                description: '要包含在報告中的發現 ID'
+                                            },
+                                            reportFormat: {
+                                                type: 'string',
+                                                enum: ['pdf', 'excel'],
+                                                default: 'pdf',
+                                                description: '報告格式'
+                                            },
+                                            includeAuditTrail: {
+                                                type: 'boolean',
+                                                default: true,
+                                                description: '是否包含審計追蹤'
+                                            },
+                                            complianceFrameworks: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    enum: ['ISO_27001', 'OWASP', 'NIST', 'IEC_62443']
+                                                },
+                                                example: ['ISO_27001', 'OWASP'],
+                                                description: '合規框架'
+                                            }
+                                        }
+                                    },
+                                    examples: {
+                                        pdfReport: {
+                                            summary: 'PDF 報告生成',
+                                            value: {
+                                                findingIds: ['pentest_001', 'pentest_002'],
+                                                reportFormat: 'pdf',
+                                                includeAuditTrail: true,
+                                                complianceFrameworks: ['ISO_27001', 'OWASP']
+                                            }
+                                        },
+                                        excelReport: {
+                                            summary: 'Excel 報告生成',
+                                            value: {
+                                                findingIds: ['forensics_001', 'forensics_002'],
+                                                reportFormat: 'excel',
+                                                includeAuditTrail: true,
+                                                complianceFrameworks: ['IEC_62443', 'NIST']
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: {
+                                description: '報告生成成功',
+                                content: {
+                                    'application/pdf': {
+                                        schema: {
+                                            type: 'string',
+                                            format: 'binary'
+                                        }
+                                    },
+                                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+                                        schema: {
+                                            type: 'string',
+                                            format: 'binary'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
 
@@ -1036,6 +1384,30 @@ class SwaggerConfig {
                     externalDocs: {
                         description: '管理文檔',
                         url: 'https://docs.qinguoqinchen.ai/admin'
+                    }
+                },
+                {
+                    name: 'Compliance',
+                    description: '法規合規與標準管理',
+                    externalDocs: {
+                        description: '合規框架文檔',
+                        url: 'https://docs.qinguoqinchen.ai/compliance'
+                    }
+                },
+                {
+                    name: 'PenTest',
+                    description: '滲透測試報告管理',
+                    externalDocs: {
+                        description: '滲透測試文檔',
+                        url: 'https://docs.qinguoqinchen.ai/pentest'
+                    }
+                },
+                {
+                    name: 'Forensics',
+                    description: '數位取證證據管理',
+                    externalDocs: {
+                        description: '數位取證文檔',
+                        url: 'https://docs.qinguoqinchen.ai/forensics'
                     }
                 }
             ],
@@ -1256,6 +1628,94 @@ class SwaggerConfig {
                                 format: 'date-time',
                                 example: '2025-10-21T08:20:00.000Z',
                                 description: '回應時間戳'
+                            }
+                        }
+                    },
+
+                    ComplianceCrawlRequest: {
+                        type: 'object',
+                        properties: {
+                            sources: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    enum: ['ISO_27001', 'OWASP_TOP10', 'TW_LEGAL_DB', 'IEC_62443']
+                                },
+                                example: ['ISO_27001', 'OWASP_TOP10'],
+                                description: '要爬取的法規標準來源'
+                            },
+                            forceUpdate: {
+                                type: 'boolean',
+                                default: false,
+                                example: true,
+                                description: '是否強制更新已存在的資料'
+                            }
+                        }
+                    },
+
+                    PenTestImportRequest: {
+                        type: 'object',
+                        required: ['report'],
+                        properties: {
+                            report: {
+                                type: 'string',
+                                format: 'binary',
+                                description: '滲透測試報告檔案'
+                            },
+                            toolType: {
+                                type: 'string',
+                                enum: ['nessus', 'nmap', 'burp', 'zap', 'metasploit', 'wireshark'],
+                                example: 'nessus',
+                                description: '掃描工具類型'
+                            },
+                            targetSystem: {
+                                type: 'string',
+                                example: 'production_web_server',
+                                description: '目標系統'
+                            },
+                            testDate: {
+                                type: 'string',
+                                format: 'date',
+                                example: '2025-10-22',
+                                description: '測試日期'
+                            },
+                            metadata: {
+                                type: 'string',
+                                example: '{"tester":"security_team","scope":"external"}',
+                                description: 'JSON 格式的額外資訊'
+                            }
+                        }
+                    },
+
+                    ForensicsImportRequest: {
+                        type: 'object',
+                        required: ['evidence'],
+                        properties: {
+                            evidence: {
+                                type: 'string',
+                                format: 'binary',
+                                description: '取證證據檔案'
+                            },
+                            evidenceType: {
+                                type: 'string',
+                                enum: ['disk_image', 'memory_dump', 'network_capture', 'log_file'],
+                                example: 'disk_image',
+                                description: '證據類型'
+                            },
+                            caseId: {
+                                type: 'string',
+                                example: 'CASE-2025-001',
+                                description: '案件編號'
+                            },
+                            investigator: {
+                                type: 'string',
+                                example: 'forensics_team',
+                                description: '調查人員'
+                            },
+                            metadata: {
+                                type: 'string',
+                                example: '{"hash":"sha256:abc123","custody":"chain_maintained"}',
+                                description: '取證 metadata'
                             }
                         }
                     }
