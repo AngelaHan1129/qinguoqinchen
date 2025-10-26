@@ -5,9 +5,9 @@ async function testAPIConnection() {
     console.log('🔍 測試 API 連接...');
 
     const endpoints = [
-        'http://localhost:7939/health',
-        'http://localhost:7939/rag/stats',
-        'http://localhost:7939/api/rag/stats'
+        `${process.env.NUXT_PUBLIC_API_BASE_URL}/health`,
+        `${process.env.NUXT_PUBLIC_API_BASE_URL}/rag/stats`,
+        `${process.env.NUXT_PUBLIC_API_BASE_URL}/api/rag/stats`
     ];
 
     for (const endpoint of endpoints) {

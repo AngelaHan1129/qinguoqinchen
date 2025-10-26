@@ -95,53 +95,55 @@
         </div>
       </div>
 
-      <!-- AI 智能摘要 -->
-      <div class="ai-summary-container">
-        <h3 class="summary-title">🤖 AI 智能報告摘要</h3>
-        <div class="summary-grid">
-          <!-- Grok 滲透測試分析 -->
-          <div class="summary-card">
-            <h4 class="summary-card-title success-title">
-              ✅ Grok AI 滲透測試分析
-            </h4>
-            <div class="summary-content">
-              {{ truncateText(result.grokReports.pentestReport.content, 300) }}
-            </div>
-            <button @click="showFullReport('grok')" class="view-more-btn">
-              查看完整分析 →
-            </button>
-          </div>
+     <!-- AI 智能摘要 -->
+<div class="ai-summary-container">
+  <h3 class="summary-title">🤖 AI 智能報告摘要</h3>
+  <div class="summary-grid">
 
-          <!-- Gemini 企業建議 -->
-          <div class="summary-card">
-            <h4 class="summary-card-title warning-title">
-              🛡️ Gemini 防禦建議
-            </h4>
-            <div class="summary-content">
-              <p v-if="result.geminiRecommendations.defenseStrategy.content">
-                {{ truncateText(result.geminiRecommendations.defenseStrategy.content, 300) }}
-              </p>
-              <p v-else class="no-data">防禦建議生成中...</p>
-            </div>
-            <button @click="showFullReport('gemini')" class="view-more-btn">
-              查看完整建議 →
-            </button>
-          </div>
-
-          <!-- 執行摘要 -->
-          <div class="summary-card">
-            <h4 class="summary-card-title info-title">
-              📊 執行摘要
-            </h4>
-            <ul class="summary-list">
-              <li>• 測試時間: {{ result.executiveSummary.testDuration }}</li>
-              <li>• 成功率: {{ result.executiveSummary.overallSuccessRate }}</li>
-              <li>• 風險等級: {{ result.executiveSummary.riskLevel }}</li>
-              <li>• Session ID: {{ result.sessionId }}</li>
-            </ul>
-          </div>
-        </div>
+    <!-- Grok 滲透測試分析 -->
+    <div class="summary-card">
+      <h4 class="summary-card-title success-title">
+        滲透測試分析
+      </h4>
+      <div class="summary-content">
+        {{ truncateText(result.grokReports.pentestReport.content, 300) }}
       </div>
+      <button @click="showFullReport('grok')" class="view-more-btn">
+        查看完整分析 →
+      </button>
+    </div>
+
+    <!-- 下次滲透攻擊建議 -->
+    <div class="summary-card">
+      <h4 class="summary-card-title warning-title">
+        下次滲透攻擊建議
+      </h4>
+      <div class="summary-content">
+        <p v-if="result.grokReports.attackRecommendations && result.grokReports.attackRecommendations.content">
+          {{ truncateText(result.grokReports.attackRecommendations.content, 300) }}
+        </p>
+        <p v-else class="no-data">尚未產生攻擊建議...</p>
+      </div>
+      <button @click="showFullReport('attackRecommendations')" class="view-more-btn">
+        查看完整建議 →
+      </button>
+    </div>
+
+    <!-- 執行摘要 -->
+    <div class="summary-card">
+      <h4 class="summary-card-title info-title">
+        執行摘要
+      </h4>
+      <ul class="summary-list">
+        <li>• 測試時間: {{ result.executiveSummary.testDuration }}</li>
+        <li>• 成功率: {{ result.executiveSummary.overallSuccessRate }}</li>
+        <li>• 風險等級: {{ result.executiveSummary.riskLevel }}</li>
+        <li>• Session ID: {{ result.sessionId }}</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
 
       <!-- 返回按鈕 -->
       <div class="action-footer">
@@ -289,6 +291,17 @@ function initChart() {
   // 響應式調整
   window.addEventListener('resize', () => myChart.resize())
 }
+function showFullReport(type: 'grok' | 'attackRecommendations') {
+  showModal.value = true
+
+  if (type === 'grok') {
+    modalTitle.value = 'Grok AI 完整滲透測試分析'
+    modalContent.value = result.value.grokReports.pentestReport.content
+  } else if (type === 'attackRecommendations') {
+    modalTitle.value = '紅隊下次攻擊策略建議'
+    modalContent.value = result.value.grokReports.attackRecommendations.content || '尚未產生攻擊建議...'
+  }
+}
 
 // 生成日期範圍
 function generateDateRange(): string[] {
@@ -374,18 +387,6 @@ function downloadReport(format: 'pdf' | 'excel') {
   }
 }
 
-// 顯示完整報告
-function showFullReport(type: 'grok' | 'gemini') {
-  showModal.value = true
-  
-  if (type === 'grok') {
-    modalTitle.value = 'Grok AI 完整滲透測試分析'
-    modalContent.value = result.value.grokReports.pentestReport.content
-  } else {
-    modalTitle.value = 'Gemini 完整防禦建議'
-    modalContent.value = result.value.geminiRecommendations.defenseStrategy.content || '生成中...'
-  }
-}
 
 // 關閉模態框
 function closeModal() {

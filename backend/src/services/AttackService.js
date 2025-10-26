@@ -1,6 +1,13 @@
 // src/services/AttackService.js
 const ZAPService = require('./ZAPService');
 const PentestGPTService = require('./PentestGPTService');
+const defaultVectorMap = {
+    A1: { model: 'StyleGAN3', scenario: '高擬真臉部', successRate: 78 },
+    A2: { model: 'StableDiffusion', scenario: '螢幕翻拍攻擊', successRate: 65 },
+    A3: { model: 'SimSwap', scenario: '即時換臉', successRate: 89 },
+    A4: { model: 'DiffusionGAN', scenario: '偽造護照', successRate: 73 },
+    A5: { model: 'DALL·E', scenario: '生成假證件', successRate: 82 }
+};
 class AttackService {
     constructor() {
         this.attackVectors = this.initializeAttackVectors();
@@ -19,7 +26,38 @@ class AttackService {
                 successRate: '78%',
                 description: '使用 StyleGAN3 生成高擬真臉部影像'
             },
-            // ... 其他攻擊向量
+            {
+                id: 'A2',
+                model: 'StableDiffusion',
+                scenario: '螢幕翻拍攻擊',
+                difficulty: 'LOW',
+                successRate: '65%',
+                description: '模擬螢幕反射和拍攝偽像'
+            },
+            {
+                id: 'A3',
+                model: 'SimSwap',
+                scenario: '即時換臉攻擊',
+                difficulty: 'HIGH',
+                successRate: '89%',
+                description: '最危險的即時視訊換臉技術'
+            },
+            {
+                id: 'A4',
+                model: 'Diffusion+GAN',
+                scenario: '偽造護照攻擊',
+                difficulty: 'MEDIUM',
+                successRate: '73%',
+                description: '生成含 MRZ 和條碼的假證件'
+            },
+            {
+                id: 'A5',
+                model: 'DALL·E',
+                scenario: '生成假證件',
+                difficulty: 'EASY',
+                successRate: '82%',
+                description: '直接生成身分證件圖像'
+            }
         ];
     }
 
@@ -36,19 +74,17 @@ class AttackService {
 
     executeAttack(attackParams) {
         const { vectorIds = ['A1'], intensity = 'medium' } = attackParams;
-
-        console.log(`🎯 執行攻擊測試: ${vectorIds.join(', ')}, 強度: ${intensity}`);
-
         const results = this.processAttackVectors(vectorIds, intensity);
+        const summary = this.generateSummary(results);
 
         return {
             success: true,
             testId: this.generateTestId(),
             attackResults: {
-                vectors: vectorIds,
+                vectors: results,          // 改成詳細陣列
                 intensity,
-                results,
-                summary: this.generateSummary(results)
+                results,                   // 這是個重複項可以省略
+                summary                    // 衝正 summary
             },
             timestamp: new Date().toISOString()
         };

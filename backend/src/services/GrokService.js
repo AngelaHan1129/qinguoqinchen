@@ -33,8 +33,27 @@ class GrokService {
     // ═══════════════════════════════════════════
     // ⭐ 新方法 1: 生成完整滲透測試報告
     // ═══════════════════════════════════════════
-    async generatePentestReport(attackResults, zapResults, systemContext) {
+    async generatePentestReport(attackResults = { summary: {}, results: [] }, zapResults, systemContext) {
         console.log('📊 [GrokService] 生成完整滲透測試報告...');
+
+        const totalAttacks = attackResults.summary?.totalAttacks || 0;
+        const successfulAttacks = attackResults.summary?.successfulAttacks || 0;
+        const overallSuccessRate = attackResults.summary?.overallSuccessRate || '0%';
+        let attackResultItems = [];
+        if (attackResults && attackResults.results) {
+            attackResultItems = attackResults.results;
+        }
+        let reportContent = `測試目標：${systemContext?.url || '未知'}\n`;
+        // 把這裡的 targetInfo 改成 systemContext
+        reportContent += attackResultItems.map((r, i) => `
+${i + 1}. ${r.vectorName || 'Unknown'} (${r.vectorId || 'N/A'})
+   - 成功: ${r.success ? '是' : '否'}
+   - 信心度: ${(r.confidence * 100).toFixed(1)}%
+   - 繞過得分: ${r.bypassScore || 0}
+`).join('\n');
+
+        reportContent += `測試目標：${systemContext?.url || '未知'}\n`;
+        reportContent += `總攻擊：${totalAttacks} 成功：${successfulAttacks} 成功率：${overallSuccessRate}\n`;
 
         const systemPrompt = `你是世界頂級的資訊安全專家和滲透測試報告撰寫專家。請使用繁體中文撰寫專業報告。`;
 
@@ -47,7 +66,7 @@ class GrokService {
 - 風險等級：${attackResults.summary?.riskLevel || 'UNKNOWN'}
 
 【攻擊向量測試結果】
-${attackResults.results?.map((r, i) => `
+${attackResultItems.map((r, i) => `
 ${i + 1}. ${r.vectorName || 'Unknown'} (${r.vectorId || 'N/A'})
    - 成功: ${r.success ? '是' : '否'}
    - 信心度: ${(r.confidence * 100).toFixed(1)}%

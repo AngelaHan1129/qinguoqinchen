@@ -8,6 +8,9 @@ const PentestRoutes = require('./pentest.routes');
 
 class RouteManager {
     static registerAllRoutes(app, services) {
+        const path = require('path');
+        app.use('/reports', require('express').static(path.join(__dirname, '../../reports')));
+
         console.log('🔧 開始註冊所有路由...');
 
         try {

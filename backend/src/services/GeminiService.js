@@ -1,11 +1,11 @@
 // src/services/GeminiService.js
 class GeminiService {
     constructor() {
-        this.ai = null;
+        this.ai = aiApi;
         this.isConfigured = !!process.env.GEMINI_API_KEY;
         this.requestCount = 0;
         this.errorCount = 0;
-
+        this.options = options;
         if (this.isConfigured) {
             this.initializeGeminiAI();
         }
@@ -532,16 +532,17 @@ ${ragContextText}
         this.requestCount++;
 
         if (!this.isConfigured || !this.ai) {
-            return this.getMockDefenseStrategy(grokAttackRecommendations);
+            return this.getMockDefenseStrategy(grokAttackRecommendations, ragContext);
         }
 
         try {
             console.log('🛡️ [Gemini] 基於 Grok 攻擊建議生成防禦策略...');
 
+            // 這裡以 Gemini SDK (Node) 為例（請依你的 sdk 調整）
             const model = this.ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
             const ragContextText = ragContext.length > 0
-                ? ragContext.map((doc, i) => `【參考 ${i + 1}】${doc.title}: ${doc.content}`).join('\n')
+                ? ragContext.map((doc, i) => `【參考 ${i + 1}】${doc.title}: ${doc.content || ''}`).join('\n')
                 : '（無額外參考）';
 
             const prompt = `你是企業資訊安全防禦專家，請基於紅隊的攻擊建議，制定對應的防禦策略。
@@ -587,6 +588,7 @@ ${ragContextText}
 
 請提供可執行的專業建議。`;
 
+            // Gemini SDK 實際請求（依你的 API 調整）
             const result = await model.generateContent(prompt);
             const response = await result.response;
 
@@ -602,7 +604,7 @@ ${ragContextText}
         } catch (error) {
             this.errorCount++;
             console.error('❌ [Gemini] 防禦策略生成失敗:', error.message);
-            return this.getMockDefenseStrategy(grokAttackRecommendations);
+            return this.getMockDefenseStrategy(grokAttackRecommendations, ragContext);
         }
     }
 
@@ -615,7 +617,7 @@ ${ragContextText}
         if (ragSourcesCount >= 5) return 0.95;
         if (ragSourcesCount >= 3) return 0.85;
         if (ragSourcesCount >= 1) return 0.75;
-        return 0.6; // 無 RAG 來源時的基準信心度
+        return Math.min(0.5 + ragSourcesCount * 0.1, 0.95);// 無 RAG 來源時的基準信心度
     }
 
     getMockEnterpriseRemediation(grokReport) {
@@ -644,7 +646,7 @@ ${ragContextText}
         };
     }
 
-    getMockDefenseStrategy(grokAttackRecommendations) {
+    getMockDefenseStrategy(grokAttackRecommendations, ragContext = []) {
         return {
             success: true,
             defenseStrategy: `# 🛡️ 防禦策略（模擬）
@@ -659,7 +661,7 @@ ${ragContextText}
 
 ⚠️ 此為模擬策略。請設定 GEMINI_API_KEY 以使用完整 AI 功能。`,
             model: 'mock-gemini',
-            ragSourcesUsed: 0,
+            ragSourcesUsed: ragContext.length,
             confidence: 0.5,
             timestamp: new Date().toISOString()
         };
