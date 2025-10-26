@@ -1,15 +1,204 @@
 // src/factories/ServiceFactory.js - 完整整合版本
 class ServiceFactory {
     static createAllServices() {
+        // 第一階段：創建基礎服務
+        const appService = this.createAppService();
+        const healthService = this.createHealthService();
+        const databaseService = this.createDatabaseService();
+
+        // 第二階段：創建 AI 服務
+        const geminiService = this.createGeminiService();
+        const grokService = this.createGrokService();
+        const vertexAIAgentService = this.createVertexAIService();
+
+        // 第三階段：創建專業服務
+        const embeddingService = this.createEmbeddingService();
+        const ragService = this.createRagService(); // 需要 gemini + embedding
+        const attackService = this.createAttackService();
+
+        // 第四階段：創建報告服務（新增）
+        const complianceReportService = this.createComplianceReportService(ragService, geminiService);
+
+        // 第五階段：創建 ZAP 服務（新增，如果需要）
+        const zapService = this.createZAPService();
+
+        // 第六階段：創建協調器服務（新增 - 核心）
+        const pentestOrchestrator = this.createPentestOrchestrator({
+            attackService,
+            grokService,
+            geminiService,
+            ragService,
+            complianceReportService,
+            zapService
+        });
+
+        // 返回所有服務
         return {
-            appService: this.createAppService(),
-            healthService: this.createHealthService(),
-            attackService: this.createAttackService(),
-            geminiService: this.createGeminiService(),
-            grokService: this.createGrokService(),
-            vertexAIAgentService: this.createVertexAIService(), // 修正為一致的命名
-            ragService: this.createRagService(),
-            databaseService: this.createDatabaseService()
+            // 基礎服務
+            appService,
+            healthService,
+            databaseService,
+
+            // AI 服務
+            geminiService,
+            grokService,
+            vertexAIAgentService,
+
+            // 專業服務
+            embeddingService,
+            ragService,
+            attackService,
+
+            // 新增服務
+            complianceReportService,
+            zapService,
+            pentestOrchestrator  // ⭐ 核心協調器
+        };
+    }
+
+    // ═══════════════════════════════════════════
+    // 新增：PentestOrchestrator 服務創建
+    // ═══════════════════════════════════════════
+    static createPentestOrchestrator(services) {
+        console.log('🎯 創建滲透測試協調器服務...');
+
+        try {
+            const PentestOrchestrator = require('../services/PentestOrchestrator');
+            return new PentestOrchestrator(services);
+        } catch (error) {
+            console.error('❌ PentestOrchestrator 創建失敗:', error.message);
+
+            // 返回模擬協調器
+            return this.createMockPentestOrchestrator();
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    // 新增：ComplianceReportService 服務創建
+    // ═══════════════════════════════════════════
+    static createComplianceReportService(ragService, geminiService) {
+        console.log('📄 創建合規報告服務...');
+
+        try {
+            const ComplianceReportService = require('../services/ComplianceReportService');
+            return new ComplianceReportService(ragService, geminiService);
+        } catch (error) {
+            console.error('❌ ComplianceReportService 創建失敗:', error.message);
+
+            // 返回模擬報告服務
+            return this.createMockComplianceReportService();
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    // 新增：ZAPService 服務創建（可選）
+    // ═══════════════════════════════════════════
+    static createZAPService() {
+        console.log('🔒 創建 OWASP ZAP 服務...');
+
+        try {
+            const ZAPService = require('../services/ZAPService');
+            return new ZAPService();
+        } catch (error) {
+            console.warn('⚠️ ZAP 服務不可用（可選功能）:', error.message);
+
+            // ZAP 是可選的，返回 null
+            return null;
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    // 模擬服務：PentestOrchestrator（當真實服務不可用時）
+    // ═══════════════════════════════════════════
+    static createMockPentestOrchestrator() {
+        console.log('⚠️ 使用模擬滲透測試協調器');
+
+        return {
+            async executeFullPenetrationTest(params) {
+                console.log('🔄 模擬執行完整滲透測試', params);
+
+                return {
+                    success: true,
+                    sessionId: `MOCK-PENTEST-${Date.now()}`,
+                    executiveSummary: {
+                        totalVectors: params.vectorIds?.length || 0,
+                        successfulAttacks: 0,
+                        failedAttacks: params.vectorIds?.length || 0,
+                        overallSuccessRate: '0%',
+                        riskLevel: 'LOW',
+                        testDuration: '0 秒',
+                        timestamp: new Date().toISOString()
+                    },
+                    attackResults: {
+                        vectors: [],
+                        summary: {
+                            totalAttacks: 0,
+                            successfulAttacks: 0,
+                            failedAttacks: 0,
+                            overallSuccessRate: '0%',
+                            riskLevel: 'LOW'
+                        },
+                        metrics: {}
+                    },
+                    attackerRecommendations: {
+                        source: 'Mock',
+                        recommendations: {
+                            priorityVectors: [],
+                            nextSteps: ['請實作真實的 PentestOrchestrator 服務'],
+                            bypassTechniques: []
+                        },
+                        confidence: 0
+                    },
+                    defenseRecommendations: {
+                        source: 'Mock',
+                        recommendations: {
+                            immediate: [],
+                            shortTerm: [],
+                            longTerm: []
+                        },
+                        ragSources: 0,
+                        confidence: 0
+                    },
+                    reports: null,
+                    downloads: {
+                        pdfReport: null,
+                        excelReport: null
+                    },
+                    metadata: {
+                        generatedAt: new Date().toISOString(),
+                        version: '2.0.0',
+                        system: '侵國侵城 AI 滲透測試系統（模擬模式）'
+                    },
+                    mode: 'mock',
+                    message: '請實作真實的 PentestOrchestrator 服務以執行完整測試'
+                };
+            }
+        };
+    }
+
+    // ═══════════════════════════════════════════
+    // 模擬服務：ComplianceReportService
+    // ═══════════════════════════════════════════
+    static createMockComplianceReportService() {
+        console.log('⚠️ 使用模擬合規報告服務');
+
+        return {
+            async generateComplianceReport(findings, options) {
+                console.log('🔄 模擬生成合規報告', {
+                    findingsCount: findings?.length || 0,
+                    format: options?.format
+                });
+
+                return {
+                    success: true,
+                    reportId: `MOCK-REPORT-${Date.now()}`,
+                    format: options?.format || 'pdf',
+                    path: null,
+                    size: 0,
+                    message: '請實作真實的 ComplianceReportService 以生成報告',
+                    timestamp: new Date().toISOString()
+                };
+            }
         };
     }
 
@@ -29,7 +218,7 @@ class ServiceFactory {
 
                         const { GoogleGenerativeAI } = require('@google/generative-ai');
                         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-                        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+                        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
                         console.log('🤖 Gemini AI 攻擊向量生成中...');
 
@@ -79,7 +268,7 @@ ${prompt}
                             riskLevel: analysis.riskLevel,
                             confidence: analysis.confidence,
                             prompt: prompt,
-                            model: 'gemini-2.0-flash-exp',
+                            model: 'gemini-2.5-flash',
                             timestamp: new Date().toISOString()
                         };
 
@@ -237,12 +426,12 @@ SimSwap 是目前最先進的即時換臉技術，成功率高達 89%，對 eKYC
 
                         const { GoogleGenerativeAI } = require('@google/generative-ai');
                         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-                        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+                        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
                         await model.generateContent('測試連接');
                         return {
                             success: true,
-                            model: 'gemini-2.0-flash-exp',
+                            model: 'gemini-2.5-flash',
                             status: 'connected',
                             timestamp: new Date().toISOString()
                         };
@@ -264,87 +453,315 @@ SimSwap 是目前最先進的即時換臉技術，成功率高達 89%，對 eKYC
 
     // Grok AI 服務
     // src/factories/ServiceFactory.js - 只使用真實 Grok API，不使用備用方案
+    // === Grok AI 服務 ===
     static createGrokService() {
         console.log('🔥 創建 Grok AI 服務...');
 
+        try {
+            // ⚠️ 關鍵：使用正確的路徑載入 GrokService class
+            const GrokService = require('../services/GrokService');
+
+            // ⚠️ 關鍵：創建新實例
+            const grokInstance = new GrokService();
+
+            // 🔍 調試：驗證方法存在
+            console.log('✅ GrokService 實例創建成功');
+            console.log('   方法檢查:');
+            console.log('   - generatePentestReport:', typeof grokInstance.generatePentestReport);
+            console.log('   - generateNextAttackRecommendations:', typeof grokInstance.generateNextAttackRecommendations);
+            console.log('   - chat:', typeof grokInstance.chat);
+            console.log('   - getServiceStats:', typeof grokInstance.getServiceStats);
+
+            // ⚠️ 如果方法不存在，拋出錯誤
+            if (typeof grokInstance.generatePentestReport !== 'function') {
+                throw new Error('GrokService 缺少 generatePentestReport 方法');
+            }
+
+            return grokInstance;
+
+        } catch (error) {
+            console.error('❌ GrokService 創建失敗:', error.message);
+            console.error('   堆疊:', error.stack);
+
+            // 返回備用的模擬服務
+            console.warn('⚠️ 使用模擬 Grok 服務');
+
+            return {
+                configured: false,
+
+                async generatePentestReport(attackResults, zapResults, systemContext) {
+                    console.log('🔄 [Mock Grok] 生成滲透測試報告');
+                    return {
+                        success: true,
+                        response: '# 模擬滲透測試報告\n\n此為備用模式。請檢查 GrokService.js 是否正確。',
+                        model: 'mock-fallback',
+                        timestamp: new Date().toISOString()
+                    };
+                },
+
+                async generateNextAttackRecommendations(attackResults, zapResults, previousAttempts) {
+                    console.log('🔄 [Mock Grok] 生成攻擊建議');
+                    return {
+                        success: true,
+                        response: '# 模擬攻擊建議\n\n此為備用模式。請檢查 GrokService.js 是否正確。',
+                        model: 'mock-fallback',
+                        timestamp: new Date().toISOString()
+                    };
+                },
+
+                async chat(prompt, systemPrompt) {
+                    console.log('🔄 [Mock Grok] Chat');
+                    return {
+                        success: true,
+                        response: '模擬回應：' + prompt.substring(0, 50),
+                        model: 'mock-fallback'
+                    };
+                },
+
+                getServiceStats() {
+                    return {
+                        isConfigured: false,
+                        totalRequests: 0,
+                        errorCount: 0,
+                        successRate: 0,
+                        model: 'mock-fallback',
+                        personality: 'Fallback Mode'
+                    };
+                },
+
+                async analyzeSecurityThreat(threat, target) {
+                    return {
+                        success: true,
+                        response: '模擬安全分析',
+                        model: 'mock-fallback'
+                    };
+                }
+            };
+        }
+    }
+
+
+
+    // === Vertex AI Agent 服務 ===
+    // src/factories/ServiceFactory.js - 修正版本
+    static createVertexAIService() {
+        console.log('🔧 創建 Vertex AI Agent 服務...');
+
         return {
-            configured: !!process.env.XAI_API_KEY,
+            configured: !!(process.env.GOOGLE_CLOUD_PROJECT_ID &&
+                process.env.GOOGLE_APPLICATION_CREDENTIALS),
 
-            // 驗證 API Key 格式
-            validateApiKey() {
-                const apiKey = process.env.XAI_API_KEY;
-
-                if (!apiKey) {
-                    return { valid: false, error: 'XAI_API_KEY 未設定' };
-                }
-
-                if (!apiKey.startsWith('xai-')) {
-                    return {
-                        valid: false,
-                        error: `API Key 格式不正確。應該以 'xai-' 開頭，當前格式: ${apiKey.substring(0, 10)}...`
-                    };
-                }
-
-                if (apiKey.length < 20) {
-                    return {
-                        valid: false,
-                        error: `API Key 長度不足。當前長度: ${apiKey.length}，期望至少 20 個字符`
-                    };
-                }
-
-                return { valid: true };
-            },
-
-            async analyzeSecurityThreat(threatDescription, targetSystem, analysisType = 'vulnerability') {
-                console.log('🔍 Grok AI 安全威脅分析中...', {
-                    threat: threatDescription.substring(0, 50),
-                    system: targetSystem,
-                    type: analysisType
-                });
-
-                // 先驗證 API Key
-                const keyValidation = this.validateApiKey();
-                if (!keyValidation.valid) {
-                    throw new Error(`API Key 驗證失敗: ${keyValidation.error}`);
-                }
-
-                console.log('✅ API Key 驗證通過');
-
+            async chatWithAgent(sessionId, message, agentId = 'default-security-agent') {
                 try {
-                    // 呼叫真實的 Grok API
-                    const realAnalysis = await this.callGrokAPI(threatDescription, targetSystem, analysisType);
+                    console.log('💬 Vertex AI Agent 對話嘗試...', { sessionId, agentId });
 
-                    console.log('✅ Grok AI 分析完成');
-                    return realAnalysis;
-
-                } catch (error) {
-                    // 加強錯誤處理
-                    if (error.message.includes('401') || error.message.includes('Incorrect API key')) {
-                        throw new Error(`Grok API 認證失敗: 請檢查您的 XAI_API_KEY 是否正確。請訪問 https://console.x.ai 取得正確的 API Key。`);
-                    } else if (error.message.includes('400')) {
-                        throw new Error(`Grok API 請求錯誤: ${error.message}。請檢查 API Key 和請求參數。`);
-                    } else if (error.message.includes('429')) {
-                        throw new Error(`Grok API 請求過於頻繁: 請稍後再試。`);
-                    } else if (error.message.includes('500')) {
-                        throw new Error(`Grok API 伺服器錯誤: 請稍後再試。`);
+                    // 第一優先：嘗試 Vertex AI (如果有配置)
+                    if (process.env.GOOGLE_CLOUD_PROJECT_ID && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+                        try {
+                            const vertexResponse = await this.callVertexAI(message, agentId);
+                            return vertexResponse;
+                        } catch (vertexError) {
+                            console.log('🔄 Vertex AI 失敗，降級到 Gemini API:', vertexError.message);
+                        }
                     }
 
-                    throw error;
+                    // 第二優先：嘗試 Gemini API
+                    if (process.env.GEMINI_API_KEY) {
+                        try {
+                            const geminiResponse = await this.callGeminiForAgent(message, agentId, sessionId);
+                            return geminiResponse;
+                        } catch (geminiError) {
+                            console.log('🔄 Gemini API 失敗，降級到 Grok API:', geminiError.message);
+                        }
+                    }
+
+                    // 第三優先：嘗試 Grok API
+                    if (process.env.XAI_API_KEY) {
+                        try {
+                            const grokResponse = await this.callGrokForAgent(message, agentId, sessionId);
+                            return grokResponse;
+                        } catch (grokError) {
+                            console.log('🔄 所有 AI API 失敗，使用智能模擬:', grokError.message);
+                        }
+                    }
+
+                    // 最終降級：智能模擬
+                    const simulatedResponse = this.simulateVertexAgentChat(message, sessionId, agentId);
+                    return {
+                        success: true,
+                        response: simulatedResponse.message,
+                        sessionId,
+                        agentId,
+                        suggestions: simulatedResponse.suggestions,
+                        relatedAttackVectors: simulatedResponse.relatedVectors,
+                        confidence: simulatedResponse.confidence * 0.7, // 降低信心度表示是模擬
+                        conversationLength: simulatedResponse.conversationLength,
+                        model: 'intelligent-simulation',
+                        fallbackReason: 'No AI APIs available',
+                        timestamp: new Date().toISOString()
+                    };
+
+                } catch (error) {
+                    console.error('Vertex AI Agent 對話完全失敗:', error.message);
+                    return {
+                        success: false,
+                        error: error.message,
+                        response: '抱歉，AI Agent 目前暫時不可用。請稍後再試或聯絡系統管理員。',
+                        timestamp: new Date().toISOString()
+                    };
                 }
             },
 
-            async callGrokAPI(threatDescription, targetSystem, analysisType) {
-                console.log('🌐 連接 Grok AI API...');
-                console.log(`🔑 使用 API Key: ${process.env.XAI_API_KEY.substring(0, 10)}...`);
+            // 新增：Vertex AI 真實調用
+            async callVertexAI(message, agentId) {
+                const { VertexAI } = require('@google-cloud/vertexai');
 
+                const vertexAI = new VertexAI({
+                    project: process.env.GOOGLE_CLOUD_PROJECT_ID,
+                    location: process.env.VERTEX_AI_LOCATION || 'us-central1'
+                });
+
+                const model = vertexAI.getGenerativeModel({
+                    model: 'gemini-pro',
+                    generationConfig: {
+                        temperature: 0.7,
+                        topP: 0.9,
+                        maxOutputTokens: 2048
+                    }
+                });
+
+                const agentPersonalities = {
+                    'default-security-agent': 'eKYC 安全分析專家',
+                    'ekyc-specialist': 'eKYC 系統專業顧問',
+                    'penetration-tester': '滲透測試專家',
+                    'attack-analyst': '攻擊分析專家',
+                    'defense-strategist': '防禦策略專家',
+                    'risk-assessor': '風險評估專家'
+                };
+
+                const personality = agentPersonalities[agentId] || agentPersonalities['default-security-agent'];
+
+                const prompt = `你是一位專業的 ${personality}，專門負責 eKYC 系統的安全分析。
+
+用戶問題：${message}
+
+請以 ${personality} 的身份提供專業、詳細且實用的回應。包含：
+1. 專業的威脅分析
+2. 具體的技術建議
+3. 量化的風險評估
+4. 可執行的防護措施
+
+請用繁體中文回應，並保持專業和實務導向。`;
+
+                console.log('🤖 呼叫 Vertex AI...');
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                const responseText = response.text();
+
+                return {
+                    success: true,
+                    response: responseText,
+                    sessionId: sessionId,
+                    agentId: agentId,
+                    suggestions: this.extractSuggestions(responseText),
+                    relatedAttackVectors: this.extractAttackVectors(responseText),
+                    confidence: 0.95,
+                    conversationLength: 1,
+                    model: 'vertex-ai-gemini-pro',
+                    timestamp: new Date().toISOString()
+                };
+            },
+
+            // 新增：Gemini API 調用
+            async callGeminiForAgent(message, agentId, sessionId) {
+                const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+                const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+                const model = genAI.getGenerativeModel({
+                    model: 'gemini-2.0-flash-exp',
+                    generationConfig: {
+                        temperature: 0.7,
+                        topP: 0.9,
+                        maxOutputTokens: 2048
+                    }
+                });
+
+                const agentPersonalities = {
+                    'default-security-agent': 'eKYC 安全分析專家',
+                    'ekyc-specialist': 'eKYC 系統專業顧問',
+                    'penetration-tester': '滲透測試專家',
+                    'attack-analyst': '攻擊分析專家',
+                    'defense-strategist': '防禦策略專家',
+                    'risk-assessor': '風險評估專家'
+                };
+
+                const personality = agentPersonalities[agentId] || agentPersonalities['default-security-agent'];
+
+                const enhancedPrompt = `作為專業的 ${personality}，請針對以下 eKYC 安全問題提供深度分析：
+
+【問題】：${message}
+
+【要求】：
+1. 【威脅分析】- 識別具體的安全威脅和攻擊向量
+2. 【風險評估】- 提供量化的風險評級和影響評估  
+3. 【防護建議】- 具體可執行的技術防護措施
+4. 【合規考量】- 相關的法規和標準要求
+5. 【實施優先級】- 建議的處理優先順序和時程
+
+請提供專業、實務且可執行的建議，使用繁體中文回應。`;
+
+                console.log('🧠 呼叫 Gemini API...');
+                const result = await model.generateContent(enhancedPrompt);
+                const response = await result.response;
+                const responseText = response.text();
+
+                return {
+                    success: true,
+                    response: responseText,
+                    sessionId: sessionId,
+                    agentId: agentId,
+                    suggestions: this.extractSuggestions(responseText),
+                    relatedAttackVectors: this.extractAttackVectors(responseText),
+                    confidence: 0.92,
+                    conversationLength: 1,
+                    model: 'gemini-2.0-flash-exp',
+                    timestamp: new Date().toISOString()
+                };
+            },
+
+            // 新增：Grok API 調用
+            async callGrokForAgent(message, agentId, sessionId) {
                 const fetchFunction = globalThis.fetch || require('node-fetch');
-                const prompt = this.buildGrokPrompt(threatDescription, targetSystem, analysisType);
+
+                const agentPersonalities = {
+                    'default-security-agent': 'eKYC 安全分析專家',
+                    'ekyc-specialist': 'eKYC 系統專業顧問',
+                    'penetration-tester': '滲透測試專家',
+                    'attack-analyst': '攻擊分析專家',
+                    'defense-strategist': '防禦策略專家',
+                    'risk-assessor': '風險評估專家'
+                };
+
+                const personality = agentPersonalities[agentId] || agentPersonalities['default-security-agent'];
+
+                const prompt = `You are a professional ${personality} specializing in eKYC system security analysis. 
+
+User Question: ${message}
+
+Please provide a comprehensive analysis in Traditional Chinese including:
+1. Threat analysis and attack vectors
+2. Risk assessment with quantified metrics
+3. Specific technical defense recommendations
+4. Compliance considerations
+5. Implementation priorities and timeline
+
+Focus on practical, actionable advice for eKYC security enhancement.`;
 
                 const requestBody = {
                     messages: [
                         {
                             role: "system",
-                            content: "You are a world-class cybersecurity expert specializing in eKYC systems and AI-based attack analysis. Provide detailed, professional security assessments with specific technical recommendations in Traditional Chinese when appropriate."
+                            content: "You are a world-class cybersecurity expert specializing in eKYC systems and AI-based attack analysis. Provide detailed, professional security assessments in Traditional Chinese."
                         },
                         {
                             role: "user",
@@ -357,8 +774,7 @@ SimSwap 是目前最先進的即時換臉技術，成功率高達 89%，對 eKYC
                     max_tokens: 2000
                 };
 
-                console.log('📤 發送請求到 Grok API...');
-
+                console.log('🚀 呼叫 Grok API...');
                 const response = await fetchFunction('https://api.x.ai/v1/chat/completions', {
                     method: 'POST',
                     headers: {
@@ -368,40 +784,28 @@ SimSwap 是目前最先進的即時換臉技術，成功率高達 89%，對 eKYC
                     body: JSON.stringify(requestBody)
                 });
 
-                console.log(`📥 收到回應，狀態碼: ${response.status}`);
-
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error(`❌ API 錯誤詳情:`, {
-                        status: response.status,
-                        statusText: response.statusText,
-                        body: errorText
-                    });
-
-                    throw new Error(`Grok API 錯誤: ${response.status} - ${response.statusText}. ${errorText}`);
+                    throw new Error(`Grok API 失敗 (${response.status}): ${errorText}`);
                 }
 
                 const data = await response.json();
 
                 if (!data.choices || data.choices.length === 0) {
-                    throw new Error('Grok API 回應格式錯誤：缺少 choices 字段');
+                    throw new Error('Grok API 未回傳有效回應');
                 }
 
-                const analysisText = data.choices[0].message.content;
-                const structuredAnalysis = this.parseGrokResponse(analysisText, threatDescription, targetSystem, analysisType);
+                const responseText = data.choices[0].message.content;
 
                 return {
                     success: true,
-                    analysis: analysisText,
-                    vulnerabilities: structuredAnalysis.vulnerabilities,
-                    riskScore: structuredAnalysis.riskScore,
-                    recommendations: structuredAnalysis.recommendations,
-                    technicalDetails: structuredAnalysis.technicalDetails,
-                    complianceGaps: structuredAnalysis.complianceGaps,
-                    mitigationStrategies: structuredAnalysis.mitigationStrategies,
-                    analysisType,
-                    threatDescription,
-                    targetSystem,
+                    response: responseText,
+                    sessionId: sessionId,
+                    agentId: agentId,
+                    suggestions: this.extractSuggestions(responseText),
+                    relatedAttackVectors: this.extractAttackVectors(responseText),
+                    confidence: 0.90,
+                    conversationLength: 1,
                     model: 'grok-3-mini',
                     usage: {
                         promptTokens: data.usage?.prompt_tokens || 0,
@@ -412,353 +816,76 @@ SimSwap 是目前最先進的即時換臉技術，成功率高達 89%，對 eKYC
                 };
             },
 
-            // 測試 API Key 連接
-            async testConnection() {
-                console.log('🧪 測試 Grok API 連接...');
-
-                // 先驗證 API Key 格式
-                const keyValidation = this.validateApiKey();
-                if (!keyValidation.valid) {
-                    return {
-                        success: false,
-                        error: keyValidation.error,
-                        configured: false,
-                        timestamp: new Date().toISOString()
-                    };
-                }
-
-                try {
-                    // 發送簡單的測試請求
-                    const fetchFunction = globalThis.fetch || require('node-fetch');
-
-                    const response = await fetchFunction('https://api.x.ai/v1/chat/completions', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${process.env.XAI_API_KEY}`
-                        },
-                        body: JSON.stringify({
-                            messages: [
-                                {
-                                    role: "user",
-                                    content: "Hello, test connection"
-                                }
-                            ],
-                            model: "grok-3-mini",
-                            max_tokens: 50
-                        })
-                    });
-
-                    if (response.ok) {
-                        return {
-                            success: true,
-                            model: 'grok-3-mini',
-                            status: 'connected',
-                            message: 'API Key 有效，連接成功',
-                            timestamp: new Date().toISOString()
-                        };
-                    } else {
-                        const errorText = await response.text();
-                        return {
-                            success: false,
-                            error: `連接測試失敗: ${response.status} - ${errorText}`,
-                            model: 'grok-3-mini',
-                            status: 'connection_failed',
-                            timestamp: new Date().toISOString()
-                        };
-                    }
-
-                } catch (error) {
-                    return {
-                        success: false,
-                        error: `連接測試失敗: ${error.message}`,
-                        model: 'grok-3-mini',
-                        status: 'connection_failed',
-                        timestamp: new Date().toISOString()
-                    };
-                }
-            },
-            // 建構 Grok 專用提示詞
-            buildGrokPrompt(threatDescription, targetSystem, analysisType) {
-                const promptTemplates = {
-                    'vulnerability': `
-As a cybersecurity expert, perform a comprehensive vulnerability assessment for the following scenario:
-
-**威脅**: ${threatDescription}
-**目標系統**: ${targetSystem}
-**分析類型**: 漏洞評估
-
-請提供詳細的中文分析，包含：
-
-1. **威脅向量分析**
-   - 技術實現細節
-   - 攻擊面識別
-   - 入侵點和利用方法
-
-2. **漏洞評估**
-   - 可能被利用的系統弱點
-   - 當前實作的安全缺口
-   - 風險暴露等級
-
-3. **風險量化**
-   - 攻擊成功機率 (0-10 分)
-   - 潛在影響嚴重性
-   - 整體風險分數計算
-
-4. **技術建議**
-   - 具體對策措施
-   - 實施優先順序
-   - 成本效益分析
-
-5. **合規考量**
-   - 法規要求 (個資法、金融法規、國際標準)
-   - 合規缺口
-   - 稽核軌跡要求
-
-請提供具體、可行的安全改進建議。
-                `,
-
-                    'risk-assessment': `
-針對以下情境進行綜合風險評估：
-
-**威脅**: ${threatDescription}
-**目標系統**: ${targetSystem}
-
-分析項目：
-- 威脅發生機率和影響程度
-- 業務風險意涵
-- 法規合規風險
-- 聲譽損害潛力
-- 財務損失估計
-- 風險緩解策略
-
-請用中文提供詳細分析。
-                `,
-
-                    'attack-surface': `
-針對以下系統執行攻擊面分析：
-
-**威脅**: ${threatDescription}
-**目標系統**: ${targetSystem}
-
-重點分析：
-- 所有可能的攻擊向量
-- 系統介面和 API
-- 網路暴露點
-- 人為因素和社交工程
-- 第三方整合風險
-
-請用中文提供詳細分析。
-                `,
-
-                    'compliance': `
-評估以下情境的合規意涵：
-
-**威脅**: ${threatDescription}
-**目標系統**: ${targetSystem}
-
-考量項目：
-- 法規要求 (個資法、金融服務法)
-- 行業標準 (ISO 27001, NIST)
-- 資料保護法規
-- 金融服務法規
-- 稽核和報告要求
-
-請用中文提供詳細分析。
-                `
-                };
-
-                return promptTemplates[analysisType] || promptTemplates['vulnerability'];
-            },
-
-            // 解析 Grok 回應
-            parseGrokResponse(analysisText, threatDescription, targetSystem, analysisType) {
-                const vulnerabilities = [];
-                const recommendations = [];
-                const technicalDetails = [];
-                const complianceGaps = [];
-                const mitigationStrategies = [];
-                let riskScore = 5.0;
-
-                // 智能解析回應內容
-                const lines = analysisText.split('\n');
+            // 輔助方法：提取建議
+            extractSuggestions(text) {
+                const suggestions = [];
+                const lines = text.split('\n');
 
                 for (const line of lines) {
-                    const lowerLine = line.toLowerCase().trim();
-
-                    // 提取漏洞資訊
-                    if ((lowerLine.includes('漏洞') || lowerLine.includes('弱點') || lowerLine.includes('vulnerability') || lowerLine.includes('weakness')) && line.length > 20) {
-                        vulnerabilities.push({
-                            severity: this.extractSeverity(line),
-                            description: line.trim(),
-                            impact: this.extractImpact(line),
-                            mitigation: '參考詳細建議'
-                        });
-                    }
-
-                    // 提取建議
-                    if ((lowerLine.includes('建議') || lowerLine.includes('應該') || lowerLine.includes('recommend') || lowerLine.includes('should')) && line.length > 15) {
-                        recommendations.push(line.trim());
-                    }
-
-                    // 提取技術細節
-                    if ((lowerLine.includes('技術') || lowerLine.includes('實施') || lowerLine.includes('配置') || lowerLine.includes('technical')) && line.length > 20) {
-                        technicalDetails.push(line.trim());
-                    }
-
-                    // 提取合規相關
-                    if ((lowerLine.includes('合規') || lowerLine.includes('法規') || lowerLine.includes('compliance') || lowerLine.includes('regulation')) && line.length > 15) {
-                        complianceGaps.push(line.trim());
-                    }
-
-                    // 提取風險分數
-                    const riskMatch = line.match(/(\d+(?:\.\d+)?)\s*(?:分|\/10|scale|score)/i);
-                    if (riskMatch) {
-                        riskScore = Math.min(10, Math.max(0, parseFloat(riskMatch[1])));
-                    }
-                }
-
-                // 根據威脅類型調整風險分數
-                if (threatDescription.toLowerCase().includes('simswap') || threatDescription.includes('即時換臉')) {
-                    riskScore = Math.max(riskScore, 8.5);
-                } else if (threatDescription.toLowerCase().includes('deepfake') || threatDescription.includes('深偽')) {
-                    riskScore = Math.max(riskScore, 7.8);
-                }
-
-                // 生成緩解策略
-                if (threatDescription.toLowerCase().includes('simswap') || threatDescription.includes('換臉')) {
-                    mitigationStrategies.push(
-                        '部署多模態生物識別驗證',
-                        '實施進階活體檢測',
-                        '使用3D深度感測技術',
-                        '部署AI深偽檢測模型'
-                    );
-                }
-
-                if (targetSystem.includes('銀行') || targetSystem.includes('金融')) {
-                    mitigationStrategies.push(
-                        '強化法規合規控制',
-                        '實施即時詐欺監控',
-                        '增強客戶盡職調查程序'
-                    );
-                }
-
-                return {
-                    vulnerabilities: vulnerabilities.length > 0 ? vulnerabilities : [
-                        {
-                            severity: 'HIGH',
-                            description: `${targetSystem} 面臨 ${threatDescription} 的安全威脅`,
-                            impact: '可能導致系統安全性受損和未授權存取',
-                            mitigation: '實施綜合安全控制措施'
+                    const trimmed = line.trim();
+                    if (trimmed.includes('建議') || trimmed.includes('應該') || trimmed.includes('需要')) {
+                        if (trimmed.length > 10 && trimmed.length < 50) {
+                            suggestions.push(trimmed.replace(/^[•\-\*\d\.]+\s*/, ''));
                         }
-                    ],
-                    riskScore: Math.round(riskScore * 10) / 10,
-                    recommendations: recommendations.length > 0 ? recommendations : [
-                        '實施多層安全控制',
-                        '定期進行安全評估和滲透測試',
-                        '強化監控和事件回應機制'
-                    ],
-                    technicalDetails: technicalDetails.length > 0 ? technicalDetails : [
-                        '升級安全檢測機制',
-                        '部署AI對抗技術',
-                        '強化系統日誌和稽核'
-                    ],
-                    complianceGaps: complianceGaps.length > 0 ? complianceGaps : [
-                        '確保符合個資法要求',
-                        '遵循金融監管規範',
-                        '建立完整稽核軌跡'
-                    ],
-                    mitigationStrategies: mitigationStrategies.length > 0 ? mitigationStrategies : [
-                        '多層防護架構',
-                        '零信任安全模型',
-                        '持續安全監控'
-                    ]
-                };
-            },
-
-            // 提取嚴重性等級
-            extractSeverity(text) {
-                const lowerText = text.toLowerCase();
-                if (lowerText.includes('critical') || lowerText.includes('嚴重') || lowerText.includes('危急')) return 'CRITICAL';
-                if (lowerText.includes('high') || lowerText.includes('高') || lowerText.includes('重要')) return 'HIGH';
-                if (lowerText.includes('medium') || lowerText.includes('中') || lowerText.includes('普通')) return 'MEDIUM';
-                if (lowerText.includes('low') || lowerText.includes('低') || lowerText.includes('輕微')) return 'LOW';
-                return 'MEDIUM';
-            },
-
-            // 提取影響程度
-            extractImpact(text) {
-                const lowerText = text.toLowerCase();
-                if (lowerText.includes('complete') || lowerText.includes('完全') || lowerText.includes('全面')) return '系統完全受損';
-                if (lowerText.includes('bypass') || lowerText.includes('繞過') || lowerText.includes('迂迴')) return '安全機制可能被繞過';
-                if (lowerText.includes('unauthorized') || lowerText.includes('未授權') || lowerText.includes('非法')) return '未授權存取風險';
-                return '潛在安全影響';
-            },
-
-            // 測試 Grok API 連接
-            async testConnection() {
-                if (!process.env.XAI_API_KEY) {
-                    throw new Error('XAI_API_KEY 未設定，請設定環境變數後重試');
+                    }
                 }
 
-                console.log('🧪 測試 Grok API 連接...');
+                return suggestions.length > 0 ? suggestions.slice(0, 5) : [
+                    '加強安全監控',
+                    '更新防護機制',
+                    '進行風險評估'
+                ];
+            },
 
-                const testResult = await this.callGrokAPI(
-                    '測試連接',
-                    'eKYC 系統',
-                    'vulnerability'
-                );
+            // 輔助方法：提取攻擊向量
+            extractAttackVectors(text) {
+                const vectors = [];
+                const lowerText = text.toLowerCase();
 
+                if (lowerText.includes('simswap') || lowerText.includes('換臉')) vectors.push('A3');
+                if (lowerText.includes('stylegan') || lowerText.includes('深度偽造')) vectors.push('A1');
+                if (lowerText.includes('dall') || lowerText.includes('生成')) vectors.push('A5');
+                if (lowerText.includes('文件') || lowerText.includes('證件')) vectors.push('A4');
+                if (lowerText.includes('翻拍') || lowerText.includes('螢幕')) vectors.push('A2');
+
+                return vectors.length > 0 ? vectors : ['A1', 'A3'];
+            },
+
+            // 保持原有的其他方法...
+            async createSecurityAgent(agentName, instructions) {
+                try {
+                    console.log('🤖 建立 Vertex AI 安全代理...', agentName);
+
+                    return {
+                        success: true,
+                        agent: { displayName: agentName },
+                        agentId: `security-agent-${Date.now()}`,
+                        message: `安全代理 ${agentName} 建立完成`,
+                        instructions: instructions
+                    };
+
+                } catch (error) {
+                    console.error('安全代理建立失敗:', error.message);
+                    throw new Error(`AI 安全代理建立失敗: ${error.message}`);
+                }
+            },
+
+            async healthCheck() {
                 return {
-                    success: true,
-                    model: 'grok-3-mini',
-                    status: 'connected',
-                    usage: testResult.usage,
+                    service: 'VertexAIService',
+                    status: this.configured ? 'operational' : 'degraded',
+                    configuration: {
+                        projectId: !!process.env.GOOGLE_CLOUD_PROJECT_ID,
+                        credentials: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
+                        geminiApi: !!process.env.GEMINI_API_KEY,
+                        grokApi: !!process.env.XAI_API_KEY
+                    },
                     timestamp: new Date().toISOString()
                 };
             }
         };
     }
 
-
-    // === Vertex AI Agent 服務 ===
-    static createVertexAIService() {
-        console.log('🤖 創建 Vertex AI Agent 服務...');
-
-        return {
-            configured: !!(process.env.GOOGLE_CLOUD_PROJECT_ID && process.env.GOOGLE_APPLICATION_CREDENTIALS),
-
-            async chatWithAgent(sessionId, message, agentId = 'default-security-agent') {
-                try {
-                    console.log('💬 Vertex AI Agent 對話中...', { sessionId, agentId });
-
-                    // 模擬 Vertex AI Agent 對話
-                    const response = this.simulateVertexAgentChat(message, sessionId, agentId);
-
-                    return {
-                        success: true,
-                        response: response.message,
-                        sessionId,
-                        agentId,
-                        suggestions: response.suggestions,
-                        relatedAttackVectors: response.relatedVectors,
-                        confidence: response.confidence,
-                        conversationLength: response.conversationLength,
-                        timestamp: new Date().toISOString()
-                    };
-
-                } catch (error) {
-                    console.error('❌ Vertex AI Agent 對話失敗:', error.message);
-                    return {
-                        success: false,
-                        error: error.message,
-                        response: '抱歉，AI Agent 目前暫時不可用。請稍後再試或聯絡系統管理員。',
-                        timestamp: new Date().toISOString()
-                    };
-                }
-            }
-        };
-    }
 
     // === 攻擊服務 ===
     static createAttackService() {

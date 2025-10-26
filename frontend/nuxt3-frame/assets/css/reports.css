@@ -1,165 +1,368 @@
+/* 報告容器 */
 .reports-container {
-      max-width: 1400px;
-      margin: 2rem auto;
-      padding: 0 2rem;
-    }
+  max-width: 1400px;
+  margin: 2rem auto;
+  padding: 0 2rem;
+  position: relative;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .reports-container {
+    padding: 0 1rem;
+    margin: 1rem auto;
+  }
+}
+
 /* 報告統計卡片 */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 2rem;
-      margin-bottom: 3rem;
-    }
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+  position: relative;
+}
 
-    .stat-card {
-      background: linear-gradient(135deg, rgba(10, 15, 28, 0.9), rgba(15, 25, 45, 0.8));
-      border: 2px solid;
-      border-radius: 15px;
-      padding: 2rem;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
+/* 響應式統計卡片 */
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+  }
+}
 
-    .stat-card.critical {
-      border-color: #FF4444;
-    }
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+}
 
-    .stat-card.high {
-      border-color: var(--brand-orange);
-    }
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
-    .stat-card.medium {
-      border-color: var(--brand-gold);
-    }
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
 
-    .stat-card.low {
-      border-color: var(--neon-green);
-    }
+/* 統計卡片 */
+.stat-card {
+  background: linear-gradient(135deg, rgba(10, 15, 28, 0.9), rgba(15, 25, 45, 0.8));
+  border: 2px solid;
+  border-radius: 15px;
+  padding: 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
 
-    .stat-number {
-      font-size: 3rem;
-      font-weight: 900;
-      margin-bottom: 0.5rem;
-    }
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
 
-    .stat-card.critical .stat-number {
-      color: #FF4444;
-    }
+/* 響應式統計卡片 */
+@media (max-width: 768px) {
+  .stat-card {
+    padding: 1.5rem;
+  }
+}
 
-    .stat-card.high .stat-number {
-      color: var(--brand-orange);
-    }
+@media (max-width: 480px) {
+  .stat-card {
+    padding: 1rem;
+  }
+}
 
-    .stat-card.medium .stat-number {
-      color: var(--brand-gold);
-    }
+.stat-card.critical {
+  border-color: #FF4444;
+}
 
-    .stat-card.low .stat-number {
-      color: var(--neon-green);
-    }
+.stat-card.high {
+  border-color: var(--brand-orange);
+}
 
-    /* 報告表格 */
-    .reports-table {
-      background: var(--bg-card);
-      border: 2px solid var(--neon-cyan);
-      border-radius: 15px;
-      overflow: hidden;
-      margin-bottom: 3rem;
-    }
+.stat-card.medium {
+  border-color: var(--brand-gold);
+}
 
-    .table-header {
-      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-green));
-      color: var(--bg-dark);
-      padding: 1rem 2rem;
-      font-weight: 700;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+.stat-card.low {
+  border-color: var(--neon-green);
+}
 
-    .reports-grid {
-      display: grid;
-      grid-template-columns: 1fr 120px 100px 120px 150px;
-      gap: 1rem;
-      padding: 1rem 2rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      align-items: center;
-      transition: all 0.3s;
-    }
+/* 統計數字 */
+.stat-number {
+  font-size: 3rem;
+  font-weight: 900;
+  margin-bottom: 0.5rem;
+  transition: all 0.3s ease;
+  text-shadow: 0 0 10px currentColor;
+}
 
-    .reports-grid:hover {
-      background: rgba(0, 255, 255, 0.05);
-    }
+/* 響應式統計數字 */
+@media (max-width: 768px) {
+  .stat-number {
+    font-size: 2.5rem;
+  }
+}
 
-    .report-title {
-      font-weight: 700;
-      color: var(--brand-orange);
-    }
+@media (max-width: 480px) {
+  .stat-number {
+    font-size: 2rem;
+  }
+}
 
-    .report-status {
-      padding: 0.3rem 0.8rem;
-      border-radius: 15px;
-      font-size: 0.8rem;
-      font-weight: 700;
-      text-align: center;
-    }
+.stat-card.critical .stat-number {
+  color: #FF4444;
+}
 
-    .status-completed {
-      background: var(--neon-green);
-      color: var(--bg-dark);
-    }
+.stat-card.high .stat-number {
+  color: var(--brand-orange);
+}
 
-    .status-processing {
-      background: var(--brand-orange);
-      color: white;
-      animation: processing-blink 2s ease-in-out infinite;
-    }
+.stat-card.medium .stat-number {
+  color: var(--brand-gold);
+}
 
-    @keyframes processing-blink {
+.stat-card.low .stat-number {
+  color: var(--neon-green);
+}
 
-      0%,
-      100% {
-        opacity: 1;
-      }
+/* 報告表格 */
+.reports-table {
+  background: var(--bg-card);
+  border: 2px solid var(--neon-cyan);
+  border-radius: 15px;
+  overflow: hidden;
+  margin-bottom: 3rem;
+}
 
-      50% {
-        opacity: 0.6;
-      }
-    }
+.table-header {
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-green));
+  color: var(--bg-dark);
+  padding: 1rem 2rem;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-    .download-btn {
-      background: var(--brand-orange);
-      border: none;
-      color: white;
-      padding: 0.5rem 1rem;
-      border-radius: 5px;
-      cursor: pointer;
-      font-weight: 700;
-      transition: all 0.3s;
-    }
+/* 報告網格 */
+.reports-grid {
+  display: grid;
+  grid-template-columns: 1fr 120px 100px 120px 150px;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  align-items: center;
+  transition: all 0.3s;
+}
 
-    .download-btn:hover {
-      background: #B85F00;
-      transform: translateY(-2px);
-    }
+/* 響應式報告網格 */
+@media (max-width: 1024px) {
+  .reports-grid {
+    grid-template-columns: 1fr 100px 80px 100px 120px;
+    gap: 0.8rem;
+    padding: 1rem 1.5rem;
+  }
+}
 
-    /* 圖表容器 */
-    .chart-container {
-      background: var(--bg-card);
-      border: 2px solid var(--brand-gold);
-      border-radius: 15px;
-      padding: 2rem;
-      margin-bottom: 2rem;
-    }
+@media (max-width: 768px) {
+  .reports-grid {
+    grid-template-columns: 1fr 80px 70px 80px 100px;
+    gap: 0.5rem;
+    padding: 0.8rem 1rem;
+    font-size: 0.9rem;
+  }
+}
 
-    .chart-placeholder {
-      height: 300px;
-      background: linear-gradient(135deg, rgba(209, 112, 0, 0.1), rgba(215, 189, 130, 0.1));
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem;
-      color: var(--brand-gold);
-    }
+@media (max-width: 640px) {
+  .reports-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .reports-grid>div {
+    margin-bottom: 0.5rem;
+  }
+
+  .reports-grid>div:before {
+    content: attr(data-label) ": ";
+    font-weight: 700;
+    color: var(--brand-gold);
+  }
+}
+
+.reports-grid:hover {
+  background: rgba(0, 255, 255, 0.05);
+}
+
+.report-title {
+  font-weight: 700;
+  color: var(--brand-orange);
+}
+
+.report-status {
+  padding: 0.3rem 0.8rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.status-completed {
+  background: var(--neon-green);
+  color: var(--bg-dark);
+}
+
+.status-processing {
+  background: var(--brand-orange);
+  color: white;
+  animation: processing-blink 2s ease-in-out infinite;
+}
+
+@keyframes processing-blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.download-btn {
+  background: var(--brand-orange);
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.3s;
+}
+
+.download-btn:hover {
+  background: #B85F00;
+  transform: translateY(-2px);
+}
+
+/* 圖表容器 */
+.chart-container {
+  background: var(--bg-card);
+  border: 2px solid var(--brand-gold);
+  border-radius: 15px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  min-height: 400px;
+}
+
+.chart-title {
+  color: var(--brand-gold);
+  margin-bottom: 1.5rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.chart-element {
+  height: 350px;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.chart-placeholder {
+  height: 300px;
+  background: linear-gradient(135deg, rgba(209, 112, 0, 0.1), rgba(215, 189, 130, 0.1));
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  color: var(--brand-gold);
+}
+
+/* 報告生成控制面板 */
+.report-controls {
+  background: rgba(0, 255, 255, 0.1) !important;
+  border: 1px solid var(--neon-cyan) !important;
+  border-radius: 10px !important;
+  padding: 1.5rem !important;
+  margin-bottom: 2rem !important;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.report-controls:hover {
+  background: rgba(0, 255, 255, 0.15) !important;
+  border-color: var(--neon-green) !important;
+}
+
+/* 響應式控制面板 */
+@media (max-width: 768px) {
+  .report-controls {
+    padding: 1rem !important;
+  }
+}
+
+/* 按鈕樣式優化 */
+.cyber-btn {
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.cyber-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.cyber-btn:active {
+  transform: translateY(0);
+}
+
+/* 下載按鈕優化 */
+.download-btn {
+  background: var(--brand-orange);
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.download-btn:hover {
+  background: #B85F00;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(209, 112, 0, 0.3);
+}
+
+.download-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 響應式下載按鈕 */
+@media (max-width: 768px) {
+  .download-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+  }
+}

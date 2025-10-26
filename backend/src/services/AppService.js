@@ -71,7 +71,7 @@ class AppService {
         return {
             aiServices: {
                 gemini: { enabled: !!process.env.GEMINI_API_KEY, model: 'gemini-2.5-flash' },
-                grok: { enabled: !!process.env.XAI_API_KEY, model: 'grok-beta' },
+                grok: { enabled: !!process.env.XAI_API_KEY, model: 'grok-3-mini' },
                 vertexAI: { enabled: !!process.env.GOOGLE_CLOUD_PROJECT_ID, features: ['agents', 'analysis'] }
             },
 
@@ -137,7 +137,7 @@ class AppService {
                     status: process.env.XAI_API_KEY ? 'connected' : 'not-configured',
                     lastCheck: new Date().toISOString(),
                     rateLimit: '100 requests/minute',
-                    models: ['grok-beta']
+                    models: ['grok-3-mini']
                 },
 
                 vertex_ai: {

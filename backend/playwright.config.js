@@ -1,44 +1,52 @@
-﻿// playwright.config.js
+﻿// playwright.config.js - 完善版本
 const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
-  // 指定測試目錄
   testDir: './tests',
-  
-  // 測試檔案模式
+
   testMatch: [
     '**/tests/**/*.spec.js',
     '**/tests/**/*.test.js'
   ],
-  
-  // 專案配置
+
   projects: [
     {
-      name: 'unit',
-      testMatch: '**/tests/api/**/*.spec.js'
+      name: 'api-tests',
+      testMatch: '**/tests/api/**/*.spec.js',
     },
     {
-      name: 'e2e',
-      testMatch: '**/tests/e2e/**/*.spec.js'
+      name: 'ai-services',
+      testMatch: '**/tests/ai/**/*.spec.js',
+    },
+    {
+      name: 'unit-tests',
+      testMatch: '**/tests/unit/**/*.spec.js',
     }
   ],
-  
-  // 報告配置
+
   reporter: [
     ['line'],
     ['allure-playwright', {
       resultsDir: 'allure-results',
       detail: true,
-      suiteTitle: true
+      suiteTitle: true,
+      environmentInfo: {
+        'Framework': 'Playwright',
+        'Language': 'JavaScript',
+        'Test Environment': 'Mock Servers',
+        'AI Services': 'VertexAI, RAG, Attack Detection'
+      }
     }]
   ],
-  
-  // 全域設定
+
   timeout: 30000,
-  expect: {
-    timeout: 5000
-  },
-  
+  expect: { timeout: 5000 },
   outputDir: 'test-results/',
-  retries: 0
+  retries: process.env.CI ? 2 : 0,
+
+  use: {
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+    trace: 'retain-on-failure'
+  }
 });

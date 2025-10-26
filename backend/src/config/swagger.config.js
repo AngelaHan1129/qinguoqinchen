@@ -320,17 +320,316 @@ class SwaggerConfig {
                 },
 
                 // === Grok AI API ===
-                '/ai-grok/security-analysis': {
+                '/ai-grok/pentest-report': {
                     post: {
                         tags: ['Grok AI'],
-                        summary: 'Grok AI 安全威脅分析',
-                        description: '使用 Grok AI 進行深度安全威脅分析和風險評估',
+                        summary: '🔴 生成完整滲透測試報告 (Grok AI)',
+                        description: '使用 Grok AI 基於滲透測試結果生成專業級完整報告，包含執行摘要、詳細發現、風險評估、合規性分析、修復建議等',
                         requestBody: {
                             required: true,
                             content: {
                                 'application/json': {
                                     schema: {
                                         type: 'object',
+                                        required: ['attackResults'],
+                                        properties: {
+                                            attackResults: {
+                                                type: 'object',
+                                                description: '攻擊測試結果',
+                                                properties: {
+                                                    summary: {
+                                                        type: 'object',
+                                                        properties: {
+                                                            totalAttacks: { type: 'integer', example: 5 },
+                                                            successfulAttacks: { type: 'integer', example: 3 },
+                                                            overallSuccessRate: { type: 'string', example: '60%' },
+                                                            riskLevel: { type: 'string', example: 'HIGH' }
+                                                        }
+                                                    },
+                                                    results: {
+                                                        type: 'array',
+                                                        description: '詳細攻擊結果',
+                                                        items: {
+                                                            type: 'object',
+                                                            properties: {
+                                                                vectorId: { type: 'string', example: 'A3' },
+                                                                vectorName: { type: 'string', example: 'SimSwap' },
+                                                                attackType: { type: 'string', example: '即時換臉攻擊' },
+                                                                success: { type: 'boolean', example: true },
+                                                                confidence: { type: 'number', example: 0.89 },
+                                                                bypassScore: { type: 'number', example: 0.92 },
+                                                                vulnerabilities: {
+                                                                    type: 'array',
+                                                                    items: { type: 'string' },
+                                                                    example: ['活體檢測機制不足', '缺乏3D深度感測']
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            zapResults: {
+                                                type: 'object',
+                                                description: 'OWASP ZAP 掃描結果（可選）',
+                                                properties: {
+                                                    summary: {
+                                                        type: 'object',
+                                                        properties: {
+                                                            highRisk: { type: 'integer', example: 3 },
+                                                            mediumRisk: { type: 'integer', example: 7 },
+                                                            lowRisk: { type: 'integer', example: 12 }
+                                                        }
+                                                    },
+                                                    vulnerabilities: {
+                                                        type: 'array',
+                                                        items: {
+                                                            type: 'object',
+                                                            properties: {
+                                                                name: { type: 'string', example: 'SQL Injection' },
+                                                                description: { type: 'string' }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            systemContext: {
+                                                type: 'object',
+                                                description: '目標系統資訊',
+                                                properties: {
+                                                    type: { type: 'string', example: 'eKYC System' },
+                                                    version: { type: 'string', example: '2.0.0' },
+                                                    industry: { type: 'string', example: 'Banking' }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    examples: {
+                                        fullReport: {
+                                            summary: '完整滲透測試報告請求',
+                                            value: {
+                                                attackResults: {
+                                                    summary: {
+                                                        totalAttacks: 5,
+                                                        successfulAttacks: 3,
+                                                        overallSuccessRate: '60%',
+                                                        riskLevel: 'HIGH'
+                                                    },
+                                                    results: [
+                                                        {
+                                                            vectorId: 'A3',
+                                                            vectorName: 'SimSwap',
+                                                            attackType: '即時換臉攻擊',
+                                                            success: true,
+                                                            confidence: 0.89,
+                                                            bypassScore: 0.92,
+                                                            vulnerabilities: [
+                                                                'eKYC 活體檢測機制不足',
+                                                                '缺乏 3D 深度感測',
+                                                                '未實施挑戰反應機制'
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                systemContext: {
+                                                    type: 'eKYC System',
+                                                    version: '2.0.0',
+                                                    industry: 'Banking'
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: {
+                                description: '✅ Grok AI 滲透測試報告生成成功',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'object',
+                                            properties: {
+                                                success: { type: 'boolean', example: true },
+                                                report: {
+                                                    type: 'string',
+                                                    description: '完整的 Markdown 格式滲透測試報告'
+                                                },
+                                                model: { type: 'string', example: 'grok-3-mini' },
+                                                usage: {
+                                                    type: 'object',
+                                                    properties: {
+                                                        prompt_tokens: { type: 'integer', example: 1234 },
+                                                        completion_tokens: { type: 'integer', example: 3456 },
+                                                        total_tokens: { type: 'integer', example: 4690 }
+                                                    }
+                                                },
+                                                timestamp: { type: 'string', format: 'date-time' }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            400: { description: '❌ 請求參數不完整或格式錯誤' },
+                            500: { description: '❌ Grok AI 服務異常' }
+                        }
+                    }
+                },
+
+                '/ai-grok/attack-recommendations': {
+                    post: {
+                        tags: ['Grok AI'],
+                        summary: '⚔️ 生成下次攻擊建議 (Grok AI 紅隊視角)',
+                        description: '使用 Grok AI 基於滲透測試結果，為紅隊提供下次攻擊的戰術建議，包含優先攻擊向量、組合策略、繞過技巧、多階段攻擊路徑等',
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'application/json': {
+                                    schema: {
+                                        type: 'object',
+                                        required: ['attackResults'],
+                                        properties: {
+                                            attackResults: {
+                                                type: 'object',
+                                                description: '本次攻擊測試結果',
+                                                properties: {
+                                                    summary: {
+                                                        type: 'object',
+                                                        properties: {
+                                                            totalAttacks: { type: 'integer' },
+                                                            successfulAttacks: { type: 'integer' },
+                                                            overallSuccessRate: { type: 'string' },
+                                                            riskLevel: { type: 'string' }
+                                                        }
+                                                    },
+                                                    results: {
+                                                        type: 'array',
+                                                        items: {
+                                                            type: 'object',
+                                                            properties: {
+                                                                vectorId: { type: 'string' },
+                                                                vectorName: { type: 'string' },
+                                                                success: { type: 'boolean' },
+                                                                confidence: { type: 'number' },
+                                                                bypassScore: { type: 'number' },
+                                                                detectionMethod: { type: 'string' },
+                                                                vulnerabilities: {
+                                                                    type: 'array',
+                                                                    items: { type: 'string' }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            zapResults: {
+                                                type: 'object',
+                                                description: 'OWASP ZAP 掃描結果（可選）'
+                                            },
+                                            previousAttempts: {
+                                                type: 'array',
+                                                description: '歷史攻擊記錄（可選）',
+                                                items: {
+                                                    type: 'object',
+                                                    properties: {
+                                                        vectors: {
+                                                            type: 'array',
+                                                            items: { type: 'string' }
+                                                        },
+                                                        successRate: { type: 'string' },
+                                                        timestamp: { type: 'string' }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    examples: {
+                                        attackAdvice: {
+                                            summary: '紅隊下次攻擊建議請求',
+                                            value: {
+                                                attackResults: {
+                                                    summary: {
+                                                        totalAttacks: 5,
+                                                        successfulAttacks: 3,
+                                                        overallSuccessRate: '60%',
+                                                        riskLevel: 'HIGH'
+                                                    },
+                                                    results: [
+                                                        {
+                                                            vectorId: 'A3',
+                                                            vectorName: 'SimSwap',
+                                                            success: true,
+                                                            confidence: 0.89,
+                                                            bypassScore: 0.92,
+                                                            vulnerabilities: ['活體檢測不足']
+                                                        },
+                                                        {
+                                                            vectorId: 'A2',
+                                                            vectorName: 'StableDiffusion',
+                                                            success: false,
+                                                            detectionMethod: '摩爾紋檢測'
+                                                        }
+                                                    ]
+                                                },
+                                                previousAttempts: [
+                                                    {
+                                                        vectors: ['A1', 'A2'],
+                                                        successRate: '50%',
+                                                        timestamp: '2025-10-24T10:00:00Z'
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: {
+                                description: '✅ Grok AI 攻擊建議生成成功',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'object',
+                                            properties: {
+                                                success: { type: 'boolean', example: true },
+                                                recommendations: {
+                                                    type: 'string',
+                                                    description: '完整的攻擊策略建議（Markdown 格式）'
+                                                },
+                                                model: { type: 'string', example: 'grok-3-mini' },
+                                                usage: {
+                                                    type: 'object',
+                                                    properties: {
+                                                        prompt_tokens: { type: 'integer' },
+                                                        completion_tokens: { type: 'integer' },
+                                                        total_tokens: { type: 'integer' }
+                                                    }
+                                                },
+                                                timestamp: { type: 'string', format: 'date-time' }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            400: { description: '❌ 請求參數不完整或格式錯誤' },
+                            500: { description: '❌ Grok AI 服務異常' }
+                        }
+                    }
+                },
+
+                // 保留原有的安全分析端點（已調整）
+                '/ai-grok/security-analysis': {
+                    post: {
+                        tags: ['Grok AI'],
+                        summary: '🔍 Grok AI 安全威脅分析（通用）',
+                        description: '使用 Grok AI 進行深度安全威脅分析和風險評估（通用端點）',
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'application/json': {
+                                    schema: {
+                                        type: 'object',
+                                        required: ['threatDescription'],
                                         properties: {
                                             threatDescription: {
                                                 type: 'string',
@@ -384,6 +683,38 @@ class SwaggerConfig {
                             },
                             400: { description: '分析參數不完整' },
                             500: { description: 'Grok AI 服務異常' }
+                        }
+                    }
+                },
+
+                // 新增：Grok 服務狀態查詢
+                '/ai-grok/status': {
+                    get: {
+                        tags: ['Grok AI'],
+                        summary: '📊 查詢 Grok AI 服務狀態',
+                        description: '取得 Grok AI 服務的配置狀態和使用統計',
+                        responses: {
+                            200: {
+                                description: 'Grok AI 服務狀態',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'object',
+                                            properties: {
+                                                isConfigured: { type: 'boolean', example: true },
+                                                totalRequests: { type: 'integer', example: 156 },
+                                                errorCount: { type: 'integer', example: 3 },
+                                                successRate: { type: 'integer', example: 98 },
+                                                model: { type: 'string', example: 'grok-3-mini' },
+                                                personality: {
+                                                    type: 'string',
+                                                    example: 'Red Team Expert & Security Report Writer'
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 },
@@ -1326,7 +1657,566 @@ class SwaggerConfig {
                             }
                         }
                     }
+                },
+                '/ai-attack/smart-recommend': {
+                    post: {
+                        tags: ['AI Attack'],
+                        summary: '智能攻擊向量推薦',
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'application/json': {
+                                    schema: {
+                                        type: 'object',
+                                        properties: {
+                                            targetSystem: { type: 'string' },
+                                            previousAttacks: { type: 'array' },
+                                            riskLevel: { type: 'string', enum: ['low', 'medium', 'high'] }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                // 在 paths 物件中新增這個端點
+                '/pentest/execute/full': {
+                    post: {
+                        tags: ['PenTest'],
+                        summary: '🎯 執行完整 AI 滲透測試流程',
+                        description: `
+執行完整的 eKYC 滲透測試流程，包含：
+
+1. **⚔️ 攻擊測試執行**：使用選定的 AI 攻擊向量進行測試
+2. **🔍 ZAP 掃描**（可選）：OWASP ZAP 自動掃描
+3. **🔴 Grok AI 報告生成**：
+   - 完整滲透測試技術報告
+   - 紅隊下次攻擊建議
+4. **📚 RAG 知識檢索**：從安全知識庫檢索相關文獻
+5. **🟢 Gemini 企業建議**：
+   - 基於 Grok 報告和 RAG 知識生成企業改善建議
+   - 防禦策略建議
+6. **📄 報告生成**：自動生成 PDF 和 Excel 報告
+
+**工作流程**：攻擊測試 → Grok 分析 → RAG 檢索 → Gemini 建議 → 報告下載
+
+**預估執行時間**：30 秒 - 2 分鐘（取決於選擇的攻擊向量數量）
+        `,
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'application/json': {
+                                    schema: {
+                                        type: 'object',
+                                        properties: {
+                                            vectorIds: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    enum: ['A1', 'A2', 'A3', 'A4', 'A5']
+                                                },
+                                                description: '選擇的攻擊向量 ID',
+                                                default: ['A1', 'A2', 'A3', 'A4', 'A5'],
+                                                example: ['A1', 'A3', 'A5']
+                                            },
+                                            intensity: {
+                                                type: 'string',
+                                                enum: ['low', 'medium', 'high'],
+                                                default: 'medium',
+                                                description: '攻擊強度等級',
+                                                example: 'high'
+                                            },
+                                            targetUrl: {
+                                                type: 'string',
+                                                format: 'uri',
+                                                description: '目標 eKYC 系統 URL',
+                                                example: 'https://example-ekyc.com',
+                                                default: 'http://localhost:3000'
+                                            },
+                                            generateReports: {
+                                                type: 'boolean',
+                                                default: true,
+                                                description: '是否生成 PDF 和 Excel 報告',
+                                                example: true
+                                            }
+                                        }
+                                    },
+                                    examples: {
+                                        fullTest: {
+                                            summary: '完整測試（所有攻擊向量）',
+                                            value: {
+                                                vectorIds: ['A1', 'A2', 'A3', 'A4', 'A5'],
+                                                intensity: 'high',
+                                                targetUrl: 'https://bank-ekyc.example.com',
+                                                generateReports: true
+                                            }
+                                        },
+                                        criticalOnly: {
+                                            summary: '高危攻擊測試',
+                                            value: {
+                                                vectorIds: ['A3', 'A5'],
+                                                intensity: 'high',
+                                                targetUrl: 'https://insurance-ekyc.example.com',
+                                                generateReports: true
+                                            }
+                                        },
+                                        quickTest: {
+                                            summary: '快速測試（3個向量）',
+                                            value: {
+                                                vectorIds: ['A1', 'A3', 'A5'],
+                                                intensity: 'medium',
+                                                targetUrl: 'https://fintech-ekyc.example.com',
+                                                generateReports: false
+                                            }
+                                        },
+                                        documentForgery: {
+                                            summary: '證件偽造專項測試',
+                                            value: {
+                                                vectorIds: ['A4', 'A5'],
+                                                intensity: 'high',
+                                                targetUrl: 'https://gov-identity.example.com',
+                                                generateReports: true
+                                            }
+                                        },
+                                        deepfakeFocus: {
+                                            summary: 'Deepfake 攻擊測試',
+                                            value: {
+                                                vectorIds: ['A1', 'A2', 'A3'],
+                                                intensity: 'high',
+                                                targetUrl: 'https://banking-kyc.example.com',
+                                                generateReports: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: {
+                                description: '✅ 滲透測試執行成功',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'object',
+                                            properties: {
+                                                success: {
+                                                    type: 'boolean',
+                                                    example: true
+                                                },
+                                                sessionId: {
+                                                    type: 'string',
+                                                    example: 'PENTEST_1729842000000_A3F8D2',
+                                                    description: '測試會話 ID'
+                                                },
+                                                executiveSummary: {
+                                                    type: 'object',
+                                                    description: '執行摘要',
+                                                    properties: {
+                                                        totalVectors: {
+                                                            type: 'integer',
+                                                            example: 5,
+                                                            description: '總攻擊向量數'
+                                                        },
+                                                        successfulAttacks: {
+                                                            type: 'integer',
+                                                            example: 3,
+                                                            description: '成功攻擊數'
+                                                        },
+                                                        failedAttacks: {
+                                                            type: 'integer',
+                                                            example: 2,
+                                                            description: '失敗攻擊數'
+                                                        },
+                                                        overallSuccessRate: {
+                                                            type: 'string',
+                                                            example: '60%',
+                                                            description: '整體成功率'
+                                                        },
+                                                        riskLevel: {
+                                                            type: 'string',
+                                                            enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+                                                            example: 'HIGH',
+                                                            description: '風險等級'
+                                                        },
+                                                        testDuration: {
+                                                            type: 'string',
+                                                            example: '1 分 45 秒',
+                                                            description: '測試執行時間'
+                                                        },
+                                                        timestamp: {
+                                                            type: 'string',
+                                                            format: 'date-time',
+                                                            description: '測試完成時間'
+                                                        }
+                                                    }
+                                                },
+                                                attackResults: {
+                                                    type: 'object',
+                                                    description: '攻擊測試詳細結果',
+                                                    properties: {
+                                                        vectors: {
+                                                            type: 'array',
+                                                            description: '各攻擊向量的結果',
+                                                            items: {
+                                                                type: 'object',
+                                                                properties: {
+                                                                    vectorId: { type: 'string', example: 'A3' },
+                                                                    vectorName: { type: 'string', example: 'SimSwap' },
+                                                                    success: { type: 'boolean', example: true },
+                                                                    confidence: { type: 'number', example: 0.89 },
+                                                                    bypassScore: { type: 'number', example: 0.92 }
+                                                                }
+                                                            }
+                                                        },
+                                                        metrics: {
+                                                            type: 'object',
+                                                            description: '量化安全指標',
+                                                            properties: {
+                                                                apcer: { type: 'string', example: '18.5%' },
+                                                                bpcer: { type: 'string', example: '12.3%' },
+                                                                acer: { type: 'string', example: '15.4%' },
+                                                                eer: { type: 'string', example: '15.4%' },
+                                                                rocAuc: { type: 'string', example: '84.6%' }
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                grokReports: {
+                                                    type: 'object',
+                                                    description: 'Grok AI 生成的技術報告',
+                                                    properties: {
+                                                        pentestReport: {
+                                                            type: 'object',
+                                                            properties: {
+                                                                content: {
+                                                                    type: 'string',
+                                                                    description: '完整滲透測試報告（Markdown 格式）'
+                                                                },
+                                                                model: {
+                                                                    type: 'string',
+                                                                    example: 'grok-3-mini'
+                                                                },
+                                                                timestamp: {
+                                                                    type: 'string',
+                                                                    format: 'date-time'
+                                                                }
+                                                            }
+                                                        },
+                                                        attackRecommendations: {
+                                                            type: 'object',
+                                                            properties: {
+                                                                content: {
+                                                                    type: 'string',
+                                                                    description: '紅隊下次攻擊建議（Markdown 格式）'
+                                                                },
+                                                                model: {
+                                                                    type: 'string',
+                                                                    example: 'grok-3-mini'
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                geminiRecommendations: {
+                                                    type: 'object',
+                                                    description: 'Gemini AI 生成的企業建議',
+                                                    properties: {
+                                                        enterpriseRemediation: {
+                                                            type: 'object',
+                                                            properties: {
+                                                                content: {
+                                                                    type: 'string',
+                                                                    description: '企業改善建議（Markdown 格式）'
+                                                                },
+                                                                model: {
+                                                                    type: 'string',
+                                                                    example: 'gemini-2.5-flash'
+                                                                },
+                                                                confidence: {
+                                                                    type: 'number',
+                                                                    example: 0.95,
+                                                                    description: 'AI 信心度（基於 RAG 來源數量）'
+                                                                },
+                                                                ragSourcesUsed: {
+                                                                    type: 'integer',
+                                                                    example: 5,
+                                                                    description: '使用的 RAG 知識來源數量'
+                                                                }
+                                                            }
+                                                        },
+                                                        defenseStrategy: {
+                                                            type: 'object',
+                                                            properties: {
+                                                                content: {
+                                                                    type: 'string',
+                                                                    description: '防禦策略建議（Markdown 格式）'
+                                                                },
+                                                                model: {
+                                                                    type: 'string',
+                                                                    example: 'gemini-2.5-flash'
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                ragContext: {
+                                                    type: 'object',
+                                                    description: 'RAG 知識庫檢索結果',
+                                                    properties: {
+                                                        totalSources: {
+                                                            type: 'integer',
+                                                            example: 5,
+                                                            description: '檢索到的相關文檔數量'
+                                                        },
+                                                        sources: {
+                                                            type: 'array',
+                                                            items: {
+                                                                type: 'object',
+                                                                properties: {
+                                                                    title: { type: 'string', example: 'eKYC 安全最佳實踐' },
+                                                                    category: { type: 'string', example: 'security' },
+                                                                    similarity: { type: 'number', example: 0.87 }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                downloads: {
+                                                    type: 'object',
+                                                    description: '報告下載連結',
+                                                    properties: {
+                                                        pdfReport: {
+                                                            type: 'string',
+                                                            example: '/reports/PENTEST_1729842000000_A3F8D2.pdf',
+                                                            nullable: true
+                                                        },
+                                                        excelReport: {
+                                                            type: 'string',
+                                                            example: '/reports/PENTEST_1729842000000_A3F8D2.xlsx',
+                                                            nullable: true
+                                                        }
+                                                    }
+                                                },
+                                                metadata: {
+                                                    type: 'object',
+                                                    properties: {
+                                                        executionTime: {
+                                                            type: 'string',
+                                                            example: '105000ms'
+                                                        },
+                                                        version: {
+                                                            type: 'string',
+                                                            example: '2.0.0'
+                                                        },
+                                                        system: {
+                                                            type: 'string',
+                                                            example: '侵國侵城 AI 滲透測試系統'
+                                                        },
+                                                        aiModels: {
+                                                            type: 'object',
+                                                            properties: {
+                                                                attackAnalysis: { type: 'string', example: 'Grok AI' },
+                                                                enterpriseRemediation: { type: 'string', example: 'Gemini 2.5 Flash' },
+                                                                knowledgeBase: { type: 'string', example: 'RAG (pgvector)' }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        example: {
+                                            success: true,
+                                            sessionId: 'PENTEST_1729842000000_A3F8D2',
+                                            executiveSummary: {
+                                                totalVectors: 5,
+                                                successfulAttacks: 3,
+                                                failedAttacks: 2,
+                                                overallSuccessRate: '60%',
+                                                riskLevel: 'HIGH',
+                                                testDuration: '1 分 45 秒',
+                                                timestamp: '2025-10-25T08:15:30.000Z'
+                                            },
+                                            attackResults: {
+                                                vectors: [
+                                                    {
+                                                        vectorId: 'A3',
+                                                        vectorName: 'SimSwap',
+                                                        success: true,
+                                                        confidence: 0.89,
+                                                        bypassScore: 0.92
+                                                    }
+                                                ],
+                                                metrics: {
+                                                    apcer: '18.5%',
+                                                    bpcer: '12.3%',
+                                                    acer: '15.4%'
+                                                }
+                                            },
+                                            grokReports: {
+                                                pentestReport: {
+                                                    content: '# 滲透測試報告\n\n## 執行摘要\n...',
+                                                    model: 'grok-3-mini'
+                                                },
+                                                attackRecommendations: {
+                                                    content: '# 紅隊下次攻擊建議\n\n## 優先攻擊向量\n...',
+                                                    model: 'grok-3-mini'
+                                                }
+                                            },
+                                            geminiRecommendations: {
+                                                enterpriseRemediation: {
+                                                    content: '# 企業改善建議\n\n## 立即修復措施\n...',
+                                                    model: 'gemini-2.5-flash',
+                                                    confidence: 0.95,
+                                                    ragSourcesUsed: 5
+                                                }
+                                            },
+                                            downloads: {
+                                                pdfReport: '/reports/PENTEST_1729842000000_A3F8D2.pdf',
+                                                excelReport: '/reports/PENTEST_1729842000000_A3F8D2.xlsx'
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            400: {
+                                description: '❌ 請求參數錯誤',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'object',
+                                            properties: {
+                                                success: { type: 'boolean', example: false },
+                                                error: { type: 'string', example: '缺少必要參數' },
+                                                timestamp: { type: 'string', format: 'date-time' }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            500: {
+                                description: '❌ 系統內部錯誤',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'object',
+                                            properties: {
+                                                success: { type: 'boolean', example: false },
+                                                error: { type: 'string', example: '滲透測試執行失敗' },
+                                                sessionId: { type: 'string' },
+                                                timestamp: { type: 'string', format: 'date-time' }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                '/rag/upload-and-generate-report': {
+                    post: {
+                        tags: ['Compliance', 'RAG System'],
+                        summary: '上傳滲透測試報告並生成合規報告',
+                        description: `
+上傳滲透測試報告文件(TXT/PDF/JSON)並自動生成符合 ISO 27001、OWASP 等標準的合規報告。
+
+**支援的文件格式:**
+- TXT: 純文字報告
+- PDF: PDF 格式報告(需要 pdf-parse)
+- JSON: 結構化 JSON 報告
+
+**生成的報告格式:**
+- PDF: 完整的 PDF 合規報告
+- Excel: 可編輯的 Excel 工作表
+                        `,
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'multipart/form-data': {
+                                    schema: {
+                                        type: 'object',
+                                        required: ['pentestReport'],
+                                        properties: {
+                                            pentestReport: {
+                                                type: 'string',
+                                                format: 'binary',
+                                                description: '滲透測試報告文件(支援 .txt, .pdf, .json)'
+                                            },
+                                            reportFormat: {
+                                                type: 'string',
+                                                enum: ['pdf', 'excel'],
+                                                default: 'pdf',
+                                                description: '生成的報告格式'
+                                            },
+                                            includeAuditTrail: {
+                                                type: 'boolean',
+                                                default: true,
+                                                description: '是否包含稽核追蹤記錄'
+                                            },
+                                            complianceFrameworks: {
+                                                type: 'string',
+                                                description: '合規框架(JSON 陣列字串)',
+                                                example: '["ISO_27001","OWASP","NIST"]'
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: {
+                                description: '報告生成成功',
+                                content: {
+                                    'application/pdf': {
+                                        schema: {
+                                            type: 'string',
+                                            format: 'binary',
+                                            description: 'PDF 報告文件'
+                                        }
+                                    },
+                                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+                                        schema: {
+                                            type: 'string',
+                                            format: 'binary',
+                                            description: 'Excel 報告文件'
+                                        }
+                                    }
+                                }
+                            },
+                            400: {
+                                description: '請求參數錯誤',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'object',
+                                            properties: {
+                                                success: { type: 'boolean', example: false },
+                                                error: { type: 'string', example: '請上傳文件' },
+                                                timestamp: { type: 'string', format: 'date-time' }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            500: {
+                                description: '伺服器錯誤',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'object',
+                                            properties: {
+                                                success: { type: 'boolean', example: false },
+                                                error: { type: 'string', example: '生成報告失敗' },
+                                                message: { type: 'string' },
+                                                timestamp: { type: 'string', format: 'date-time' }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
+
             },
 
             tags: [
@@ -1368,6 +2258,14 @@ class SwaggerConfig {
                     externalDocs: {
                         description: 'Vertex AI 文檔',
                         url: 'https://cloud.google.com/vertex-ai'
+                    }
+                },
+                {
+                    name: 'PenTest',
+                    description: '完整滲透測試流程 - 整合 Grok + Gemini + RAG',
+                    externalDocs: {
+                        description: '完整滲透測試文檔',
+                        url: 'https://docs.qinguoqinchen.ai/pentest'
                     }
                 },
                 {
@@ -1716,6 +2614,34 @@ class SwaggerConfig {
                                 type: 'string',
                                 example: '{"hash":"sha256:abc123","custody":"chain_maintained"}',
                                 description: '取證 metadata'
+                            }
+                        }
+                    },
+                    UploadReportRequest: {
+                        type: 'object',
+                        required: ['pentestReport'],
+                        properties: {
+                            pentestReport: {
+                                type: 'string',
+                                format: 'binary',
+                                description: '滲透測試報告文件'
+                            },
+                            reportFormat: {
+                                type: 'string',
+                                enum: ['pdf', 'excel'],
+                                default: 'pdf'
+                            },
+                            includeAuditTrail: {
+                                type: 'boolean',
+                                default: true
+                            },
+                            complianceFrameworks: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    enum: ['ISO_27001', 'OWASP', 'NIST', 'IEC_62443']
+                                },
+                                example: ['ISO_27001', 'OWASP']
                             }
                         }
                     }

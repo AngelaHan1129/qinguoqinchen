@@ -51,6 +51,116 @@ class RAGRoutes {
             });
         }));
 
+        // 🔥 新增：智能安全報告摘要生成
+        app.post('/rag/security-summary', ErrorHandler.asyncHandler(async (req, res) => {
+            const { question = '請分析系統安全狀況', filters = {} } = req.body;
+            Logger.info('生成智能安全報告摘要', { question: question.substring(0, 100) });
+
+            try {
+                const result = await ragService.generateSecurityReportSummary(question);
+
+                res.json({
+                    success: true,
+                    ...result,
+                    timestamp: new Date().toISOString()
+                });
+
+            } catch (error) {
+                Logger.error('安全報告摘要生成失敗', { error: error.message });
+                res.status(500).json({
+                    success: false,
+                    error: '安全報告摘要生成失敗',
+                    message: error.message
+                });
+            }
+        }));
+
+        // 🔥 新增：文件上傳並生成智能安全報告
+        app.post('/rag/upload-security-report', upload.single('document'), ErrorHandler.asyncHandler(async (req, res) => {
+            if (!req.file) {
+                return res.status(400).json({
+                    success: false,
+                    error: '未提供文件'
+                });
+            }
+
+            const { metadata = '{}' } = req.body;
+            let parsedMetadata = {};
+
+            try {
+                parsedMetadata = JSON.parse(metadata);
+            } catch (error) {
+                return res.status(400).json({
+                    success: false,
+                    error: '無效的 metadata JSON 格式'
+                });
+            }
+
+            Logger.info('文件上傳安全報告生成', {
+                filename: req.file.originalname,
+                mimetype: req.file.mimetype,
+                size: req.file.size
+            });
+
+            try {
+                // 根據文件類型確定處理方式
+                let fileType = 'txt';
+                if (req.file.mimetype === 'application/pdf') {
+                    fileType = 'pdf';
+                } else if (req.file.mimetype.includes('spreadsheet') ||
+                    req.file.mimetype.includes('excel') ||
+                    req.file.originalname.endsWith('.xlsx') ||
+                    req.file.originalname.endsWith('.xls')) {
+                    fileType = 'excel';
+                } else if (req.file.mimetype === 'text/plain') {
+                    fileType = 'txt';
+                }
+
+                // 生成智能安全報告
+                const result = await ragService.generateUploadedDocumentSecurityReport(
+                    req.file.path,
+                    fileType,
+                    {
+                        metadata: {
+                            ...parsedMetadata,
+                            originalFilename: req.file.originalname,
+                            fileSize: req.file.size,
+                            mimeType: req.file.mimetype,
+                            uploadedAt: new Date().toISOString()
+                        }
+                    }
+                );
+
+                // 清理暫存文件
+                try {
+                    await require('fs').promises.unlink(req.file.path);
+                } catch (cleanupError) {
+                    Logger.warn('清理暫存文件失敗', { error: cleanupError.message });
+                }
+
+                res.json({
+                    success: true,
+                    message: '文件上傳並生成安全報告成功',
+                    ...result
+                });
+
+            } catch (error) {
+                // 清理暫存文件
+                try {
+                    await require('fs').promises.unlink(req.file.path);
+                } catch (cleanupError) {
+                    Logger.warn('清理暫存文件失敗', { error: cleanupError.message });
+                }
+
+                Logger.error('文件上傳安全報告生成失敗', { error: error.message });
+                res.status(500).json({
+                    success: false,
+                    error: '文件上傳安全報告生成失敗',
+                    message: error.message
+                });
+            }
+        }));
+
         // RAG 問答（增強 sources 資訊）
         app.post('/rag/ask', ErrorHandler.asyncHandler(async (req, res) => {
             const validation = validateRequired(req.body, ['question']);
@@ -1274,65 +1384,410 @@ class RAGRoutes {
         app.post('/rag/compliance/report', ErrorHandler.asyncHandler(async (req, res) => {
             const {
                 findingIds = [],
-                reportFormat = 'txt',
+                reportFormat = 'pdf',
                 includeAuditTrail = true,
-                complianceFrameworks = ['ISO_27001', 'OWASP']
+                complianceFrameworks = ['ISO_27001', 'OWASP'],
+                pentestData = null  // ✅ 新增:接受完整的滲透測試數據
             } = req.body;
 
             Logger.info('📋 生成合規報告', {
                 findingCount: findingIds.length,
-                format: reportFormat
+                format: reportFormat,
+                hasPentestData: !!pentestData
             });
 
             try {
-                const findings = await RAGRoutes.getComplianceFindings(ragService, findingIds);
-                const reportService = new ComplianceReportService(ragService, services.geminiService);
+                let reportData;
 
-                const reportBuffer = await reportService.generateComplianceReport(findings, {
-                    format: reportFormat,
-                    includeAuditTrail,
-                    complianceFrameworks
-                });
+                // ✅ 優先使用 pentestData(來自 PentestOrchestrator)
+                if (pentestData && pentestData.sessionId) {
+                    Logger.info('✅ 使用 pentestData 生成報告');
+                    reportData = pentestData;
+                } else {
+                    // ❌ 回退:嘗試從 RAG 獲取 findings
+                    Logger.info('⚠️ 沒有 pentestData,嘗試從 RAG 獲取 findings');
+                    const findings = [];
 
-                // 🔥 修正這裡：根據格式設定正確的 Content-Type 和檔名
-                let contentType, fileExtension, filename;
+                    for (const findingId of findingIds) {
+                        try {
+                            Logger.info(`📖 取得文件詳情: ${findingId}`);
+                            const finding = await ragService.getDocumentById(findingId);
+                            if (finding) {
+                                findings.push(finding);
+                            }
+                        } catch (error) {
+                            Logger.warn(`❌ 無法獲取發現 ${findingId}:`, error.message);
+                        }
+                    }
 
-                switch (reportFormat) {
-                    case 'pdf':
-                        contentType = 'application/pdf';
-                        fileExtension = 'pdf';
-                        break;
-                    case 'excel':
-                        contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-                        fileExtension = 'xlsx';
-                        break;
-                    case 'txt':
-                    default:
-                        contentType = 'text/plain; charset=utf-8';
-                        fileExtension = 'txt';
-                        break;
+                    // 構建報告數據結構
+                    reportData = {
+                        sessionId: `MANUAL_${Date.now()}`,
+                        findings: findings,
+                        executiveSummary: {
+                            totalVectors: findings.length,
+                            successfulAttacks: 0,
+                            failedAttacks: 0,
+                            overallSuccessRate: '0%',
+                            riskLevel: 'UNKNOWN',
+                            testDuration: 'N/A',
+                            timestamp: new Date().toISOString()
+                        },
+                        attackResults: { vectors: [], summary: {}, metrics: {} },
+                        grokReports: {},
+                        geminiRecommendations: {}
+                    };
                 }
 
-                filename = `compliance_report_${new Date().toISOString().split('T')[0]}.${fileExtension}`;
+                // ✅ 生成報告
+                const reportBuffer = await complianceReportService.generateComplianceReport(
+                    reportData,
+                    {
+                        format: reportFormat,
+                        complianceFrameworks,
+                        includeAuditTrail
+                    }
+                );
 
-                // 設定正確的 headers
+                // 設置回應標頭
+                const filename = `compliance_report_${new Date().toISOString().split('T')[0]}.${reportFormat === 'excel' ? 'xlsx' : reportFormat
+                    }`;
+
+                const contentType = reportFormat === 'pdf'
+                    ? 'application/pdf'
+                    : reportFormat === 'excel'
+                        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        : 'text/plain';
+
                 res.setHeader('Content-Type', contentType);
                 res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-                res.setHeader('Content-Length', reportBuffer.length);
-
-                // 發送檔案
                 res.send(reportBuffer);
 
+                Logger.success('✅ 合規報告生成成功');
+
             } catch (error) {
-                Logger.error('合規報告生成失敗:', error.message);
+                Logger.error('❌ 合規報告生成失敗', error);
                 res.status(500).json({
                     success: false,
-                    error: '合規報告生成失敗',
-                    message: error.message
+                    error: '生成報告失敗',
+                    message: error.message,
+                    timestamp: new Date().toISOString()
                 });
             }
         }));
 
+
+        // 新增到現有的 RAG 路由中
+        app.post('/rag/analyze-vulnerabilities', async (req, res) => {
+            const { findings, systemContext } = req.body
+
+            const analysis = await this.securityAnalysisService
+                .analyzeAndRecommend(findings)
+
+            res.json({
+                success: true,
+                ...analysis,
+                timestamp: new Date().toISOString()
+            })
+        })
+
+        app.post('/rag/compliance/auto-report', async (req, res) => {
+            const { findings, format = 'pdf' } = req.body
+
+            const report = await this.complianceReportService
+                .generateComplianceReport(findings, { format })
+
+            res.json({
+                success: true,
+                reportId: `COMPLIANCE-${Date.now()}`,
+                format,
+                timestamp: new Date().toISOString()
+            })
+        })
+
+        // src/routes/rag.routes.js
+        app.post('/rag/compliance/report', async (req, res) => {
+            try {
+                const {
+                    findingIds = [],
+                    reportFormat = 'pdf',
+                    includeAuditTrail = true,
+                    complianceFrameworks = ['ISO_27001', 'OWASP'],
+                    // ✅ 新增：接收完整的滲透測試結果
+                    pentestData = null
+                } = req.body;
+
+                Logger.info('📋 生成合規報告', {
+                    findingCount: findingIds.length,
+                    format: reportFormat,
+                    hasPentestData: !!pentestData
+                });
+
+                let reportData;
+
+                // ✅ 如果有滲透測試數據，直接使用
+                if (pentestData && pentestData.sessionId) {
+                    Logger.info('📊 使用提供的滲透測試數據');
+                    reportData = pentestData;
+                } else {
+                    // 原有邏輯：從 findings 查詢
+                    Logger.info('📖 從 findings ID 查詢資料');
+
+                    const findings = [];
+                    for (const findingId of findingIds) {
+                        try {
+                            Logger.info(`📖 取得文件詳情: ${findingId}`);
+                            const finding = await ragService.getDocumentById(findingId);
+                            if (finding) {
+                                findings.push(finding);
+                            }
+                        } catch (error) {
+                            Logger.warn(`無法獲取發現 ${findingId}:`, error.message);
+                        }
+                    }
+
+                    // 構建報告數據
+                    reportData = {
+                        sessionId: `MANUAL_${Date.now()}`,
+                        findings,
+                        executiveSummary: {
+                            totalVectors: findings.length,
+                            successfulAttacks: 0,
+                            failedAttacks: 0,
+                            overallSuccessRate: '0%',
+                            riskLevel: 'UNKNOWN',
+                            testDuration: 'N/A',
+                            timestamp: new Date().toISOString()
+                        },
+                        attackResults: { vectors: [], summary: {}, metrics: {} },
+                        grokReports: {},
+                        geminiRecommendations: {}
+                    };
+                }
+
+                // ✅ 生成報告，傳入完整數據
+                const reportBuffer = await complianceReportService.generateComplianceReport(
+                    reportData,
+                    {
+                        format: reportFormat,
+                        complianceFrameworks,
+                        includeAuditTrail
+                    }
+                );
+
+                // 設定響應頭
+                const filename = `compliance_report_${new Date().toISOString().split('T')[0]}.${reportFormat === 'excel' ? 'xlsx' : reportFormat}`;
+                const contentType = reportFormat === 'pdf'
+                    ? 'application/pdf'
+                    : reportFormat === 'excel'
+                        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        : 'text/plain';
+
+                res.setHeader('Content-Type', contentType);
+                res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+                res.send(reportBuffer);
+
+                Logger.success('✅ 合規報告已生成並發送');
+
+            } catch (error) {
+                Logger.error('生成合規報告失敗:', error);
+                ErrorHandler.handle(res, error);
+            }
+        });
+
+        // ✅ 新增:上傳滲透測試報告並生成合規報告
+        // src/routes/rag.routes.js
+
+        // ✅ 簡化版:上傳文件生成報告(不依賴 ragService.processUploadedReportFile)
+        app.post('/rag/upload-and-generate-report',
+            upload.single('pentestReport'),
+            ErrorHandler.asyncHandler(async (req, res) => {
+                if (!req.file) {
+                    return res.status(400).json({
+                        success: false,
+                        error: '請上傳文件',
+                        timestamp: new Date().toISOString()
+                    });
+                }
+
+                const {
+                    reportFormat = 'pdf',
+                    includeAuditTrail = 'true',
+                    complianceFrameworks = '["ISO_27001","OWASP"]'
+                } = req.body;
+
+                Logger.info('📤 上傳滲透測試報告並生成合規報告', {
+                    filename: req.file.originalname,
+                    size: req.file.size,
+                    format: reportFormat
+                });
+
+                try {
+                    // ✅ 步驟 1: 讀取文件內容
+                    const fs = require('fs').promises;
+                    let fileContent = '';
+
+                    if (req.file.mimetype === 'text/plain') {
+                        fileContent = await fs.readFile(req.file.path, 'utf8');
+                    } else if (req.file.mimetype === 'application/json') {
+                        const jsonContent = await fs.readFile(req.file.path, 'utf8');
+                        const jsonData = JSON.parse(jsonContent);
+                        fileContent = JSON.stringify(jsonData, null, 2);
+                    } else if (req.file.mimetype === 'application/pdf') {
+                        try {
+                            // 需要安裝: npm install pdf-parse
+                            const pdfParse = require('pdf-parse');
+                            const pdfBuffer = await fs.readFile(req.file.path);
+                            const pdfData = await pdfParse(pdfBuffer);
+                            fileContent = pdfData.text;
+                        } catch (pdfError) {
+                            Logger.warn('⚠️ PDF 解析失敗,使用空內容', pdfError.message);
+                            fileContent = `PDF 文件: ${req.file.originalname}\n無法解析內容`;
+                        }
+                    } else {
+                        fileContent = `文件類型: ${req.file.mimetype}\n文件名: ${req.file.originalname}`;
+                    }
+
+                    // ✅ 步驟 2: 構建報告數據結構
+                    const sessionId = `UPLOAD_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+                    const reportData = {
+                        sessionId,
+                        executiveSummary: {
+                            totalVectors: 1,
+                            successfulAttacks: 0,
+                            failedAttacks: 0,
+                            overallSuccessRate: '0%',
+                            riskLevel: 'MEDIUM',
+                            testDuration: 'N/A',
+                            timestamp: new Date().toISOString()
+                        },
+                        attackResults: {
+                            vectors: [{
+                                vectorId: 'UPLOAD',
+                                vectorName: req.file.originalname,
+                                success: false,
+                                confidence: 0.5,
+                                description: '使用者上傳的報告'
+                            }],
+                            summary: {
+                                totalAttacks: 1,
+                                successfulAttacks: 0,
+                                successRate: '0%'
+                            },
+                            metrics: {
+                                apcer: '0.00%',
+                                bpcer: '0.00%',
+                                acer: '0.00%'
+                            }
+                        },
+                        grokReports: {
+                            pentestReport: {
+                                content: fileContent || '無法讀取文件內容',
+                                model: 'user-upload',
+                                timestamp: new Date().toISOString()
+                            },
+                            attackRecommendations: {
+                                content: '此報告基於使用者上傳的文件。建議進行人工審查。',
+                                model: 'user-upload',
+                                timestamp: new Date().toISOString()
+                            }
+                        },
+                        geminiRecommendations: {
+                            enterpriseRemediation: {
+                                content: `## 使用者上傳報告分析\n\n文件名: ${req.file.originalname}\n文件大小: ${req.file.size} bytes\n上傳時間: ${new Date().toLocaleString('zh-TW')}\n\n### 內容摘要\n\n${fileContent.substring(0, 500)}...\n\n### 建議\n\n1. 進行完整的安全審查\n2. 驗證報告中的發現\n3. 制定修復計劃\n4. 實施安全控制措施`,
+                                model: 'user-upload',
+                                confidence: 0.7,
+                                ragSourcesUsed: 0
+                            },
+                            defenseStrategy: {
+                                content: '## 防禦策略\n\n1. 立即修復高風險漏洞\n2. 強化存取控制\n3. 實施持續監控\n4. 定期安全評估',
+                                model: 'user-upload',
+                                confidence: 0.7,
+                                ragSourcesUsed: 0
+                            }
+                        },
+                        ragContext: [],
+                        metadata: {
+                            uploadedFile: req.file.originalname,
+                            fileSize: req.file.size,
+                            mimeType: req.file.mimetype,
+                            generatedAt: new Date().toISOString(),
+                            version: '2.0.0',
+                            source: 'user-upload'
+                        }
+                    };
+
+                    // ✅ 步驟 3: 解析 complianceFrameworks
+                    let frameworks = ['ISO_27001', 'OWASP'];
+                    try {
+                        frameworks = JSON.parse(complianceFrameworks);
+                    } catch (e) {
+                        Logger.warn('⚠️ complianceFrameworks 解析失敗,使用預設值');
+                    }
+
+                    // ✅ 步驟 4: 生成報告
+                    const complianceReportService = services.complianceReportService;
+
+                    if (!complianceReportService) {
+                        throw new Error('ComplianceReportService 不可用');
+                    }
+
+                    const reportBuffer = await complianceReportService.generateComplianceReport(
+                        reportData,
+                        {
+                            format: reportFormat,
+                            complianceFrameworks: frameworks,
+                            includeAuditTrail: includeAuditTrail === 'true' || includeAuditTrail === true
+                        }
+                    );
+
+                    // ✅ 步驟 5: 清理上傳的臨時文件
+                    try {
+                        await fs.unlink(req.file.path);
+                    } catch (cleanupError) {
+                        Logger.warn('⚠️ 清理臨時文件失敗', cleanupError.message);
+                    }
+
+                    // ✅ 步驟 6: 設置回應標頭並返回文件
+                    const filename = `compliance_report_${new Date().toISOString().split('T')[0]}.${reportFormat === 'excel' ? 'xlsx' : reportFormat
+                        }`;
+
+                    const contentType = reportFormat === 'pdf'
+                        ? 'application/pdf'
+                        : reportFormat === 'excel'
+                            ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                            : 'text/plain';
+
+                    res.setHeader('Content-Type', contentType);
+                    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+                    res.send(reportBuffer);
+
+                    Logger.success('✅ 上傳文件並生成報告成功', {
+                        sessionId,
+                        filename: filename,
+                        size: reportBuffer.length
+                    });
+
+                } catch (error) {
+                    // ✅ 清理臨時文件
+                    try {
+                        await require('fs').promises.unlink(req.file.path);
+                    } catch (cleanupError) {
+                        // 忽略清理錯誤
+                    }
+
+                    Logger.error('❌ 上傳文件並生成報告失敗', error);
+
+                    res.status(500).json({
+                        success: false,
+                        error: '生成報告失敗',
+                        message: error.message,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            })
+        );
 
 
         Logger.success('完整 RAG 路由註冊完成', {

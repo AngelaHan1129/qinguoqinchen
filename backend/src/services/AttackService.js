@@ -1,7 +1,12 @@
 // src/services/AttackService.js
+const ZAPService = require('./ZAPService');
+const PentestGPTService = require('./PentestGPTService');
 class AttackService {
     constructor() {
         this.attackVectors = this.initializeAttackVectors();
+        this.grok = grokService;
+        this.zap = new ZAPService();  // 替代 XBOW
+        this.pentestGPT = new PentestGPTService(geminiService);
     }
 
     initializeAttackVectors() {
@@ -130,6 +135,57 @@ class AttackService {
         };
         return scenarios[vectorId] || 'Unknown';
     }
+
+    async executeEnhancedAttack(attackParams) {
+        const { vectorIds, intensity, targetSystem, targetUrl } = attackParams;
+
+        try {
+            // 使用 ZAP 進行真實掃描
+            const zapResults = await this.zap.executeAutomatedPentest(
+                vectorIds,
+                intensity,
+                targetUrl || 'http://localhost:3000'
+            );
+
+            // 使用 PentestGPT 進行 AI 分析
+            const aiResults = await this.pentestGPT.executeAIPentest(
+                targetSystem,
+                vectorIds,
+                zapResults
+            );
+
+            // 結合結果
+            return {
+                success: true,
+                scanId: `ENHANCED-${Date.now()}`,
+                zapScan: zapResults,
+                aiAnalysis: aiResults,
+                combinedScore: this.calculateCombinedScore(zapResults, aiResults),
+                recommendations: this.mergeRecommendations(zapResults, aiResults),
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            Logger.error('增強攻擊執行失敗', error.message);
+            throw error;
+        }
+    }
+
+    calculateCombinedScore(zapResults, aiResults) {
+        const zapScore = 100 - (zapResults.summary.highRisk * 20 +
+            zapResults.summary.mediumRisk * 10 +
+            zapResults.summary.lowRisk * 5);
+        const aiScore = aiResults.analysis.score || 50;
+
+        return Math.round((zapScore + aiScore) / 2);
+    }
+
+    mergeRecommendations(zapResults, aiResults) {
+        const zapRecs = zapResults.vulnerabilities.map(v => v.solution);
+        const aiRecs = aiResults.recommendations || [];
+
+        return [...new Set([...zapRecs, ...aiRecs])].filter(Boolean);
+    }
+
 }
 
 module.exports = AttackService;

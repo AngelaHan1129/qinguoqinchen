@@ -108,7 +108,7 @@ class HealthService {
             grokAI: {
                 configured: !!process.env.XAI_API_KEY,
                 status: process.env.XAI_API_KEY ? 'ready' : 'not-configured',
-                model: 'grok-beta',
+                model: 'grok-3-mini',
                 capabilities: ['security-analysis', 'penetration-testing']
             },
             vertexAI: {

@@ -4,6 +4,7 @@ const Logger = require('../utils/logger');
 const SwaggerConfig = require('../config/swagger.config');
 const RAGRoutes = require('./rag.routes');
 const AIRoutes = require('./ai.routes');
+const PentestRoutes = require('./pentest.routes');
 
 class RouteManager {
     static registerAllRoutes(app, services) {
@@ -31,6 +32,10 @@ class RouteManager {
             // 設置錯誤處理
             RouteManager.setupErrorHandling(app);
 
+            // 註冊滲透測試路由
+            PentestRoutes.register(app, services);
+
+            Logger.info('✅ 所有路由註冊完成');
             console.log(`✅ 路由註冊完成，共註冊 8 個端點`);
 
         } catch (error) {
@@ -237,6 +242,22 @@ class RouteManager {
                     timestamp: new Date().toISOString()
                 });
             });
+
+            // 在您的 routes/index.js 中新增
+            app.get('/vertex-ai/full-diagnostic', async (req, res) => {
+                try {
+                    const VertexAIAgentDiagnostic = require('../scripts/diagnose-vertex-ai-agent');
+                    const results = await VertexAIAgentDiagnostic.runCompleteDiagnostic();
+                    res.json(results);
+                } catch (error) {
+                    res.status(500).json({
+                        success: false,
+                        error: error.message,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            });
+
 
             console.log('✅ 管理路由註冊完成');
         } catch (error) {

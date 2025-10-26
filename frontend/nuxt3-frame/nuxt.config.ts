@@ -1,4 +1,4 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
+// nuxt.config.ts
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
@@ -9,10 +9,18 @@ export default defineNuxtConfig({
   build: {
     transpile: ['pinia-plugin-persistedstate'],
   },
+  nitro: {
+    devProxy: {
+      '/api': {
+        target: 'http://localhost:7939',
+        changeOrigin: true,
+        prependPath: false
+      }
+    }
+  },
   vite: {
     server: {
       proxy: {
-        // 任何對 /api 的請求，會被代理到你後端 API
         '/api': {
           target: 'http://localhost:7939',
           changeOrigin: true,

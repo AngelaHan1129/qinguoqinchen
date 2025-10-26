@@ -9,22 +9,75 @@ class ComplianceReportService {
         this.gemini = geminiService;
         Logger.info('✅ 合規報告服務初始化完成');
     }
+    // 在 constructor 後面立即加入這個方法
+    extractFindingsFromPentestResults(pentestResults) {
+        if (Array.isArray(pentestResults)) return pentestResults;
 
-    async generateComplianceReport(findings, options = {}) {
+        const vectors = pentestResults?.attackResults?.vectors || [];
+        const findings = vectors.map((vector, index) => ({
+            id: vector.vectorId || `finding_${index}`,
+            title: vector.vectorName || vector.description || `發現 ${index + 1}`,
+            description: vector.description || `攻擊向量: ${vector.vectorId || 'N/A'}`,
+            severity: vector.success ? 'high' : 'low',
+            metadata: {
+                severity: vector.success ? 'high' : 'low',
+                confidence: vector.confidence || 0.5,
+                vectorId: vector.vectorId || `V${index + 1}`,
+                success: !!vector.success,
+                category: 'security'
+            },
+            recommendations: [`修復 ${vector.vectorName || vector.vectorId || '該向量'} 相關漏洞`]
+        }));
+
+        if (!findings.length) {
+            findings.push({
+                id: 'upload_finding_1',
+                title: '使用者上傳的報告',
+                description: `檔案: ${pentestResults?.metadata?.uploadedFile || '未知'}`,
+                severity: 'medium',
+                metadata: { severity: 'medium', source: 'user-upload', category: 'general' },
+                recommendations: ['請詳細審查上傳的報告內容']
+            });
+        }
+        return findings;
+    }
+    stripEmoji(s) {
+        return (s || '').replace(/\p{Extended_Pictographic}/gu, '');
+    }
+
+    mdToPlain(s) {
+        if (!s) return '';
+        let t = String(s);
+        t = t.replace(/^#{1,6}\s+/gm, ''); // 移除 Markdown 標題
+        t = t.replace(/(\*\*|__)(.*?)\1/g, '$2'); // 移除粗體
+        t = t.replace(/(\*|_)(.*?)\1/g, '$2'); // 移除斜體
+        t = t.replace(/^\s*[-*+]\s+/gm, '• '); // 轉換列表
+        t = t.replace(/`{1,3}[^`]*`{1,3}/g, ''); // 移除程式碼區塊
+        t = t.replace(/\r\n/g, '\n'); // 統一換行符
+        return t;
+    }
+
+    // 更新方法簽名，接受完整的滲透測試結果
+    async generateComplianceReport(pentestResults, options = {}) {
         Logger.info('📋 生成合規報告...', {
-            findingCount: findings.length,
-            format: options.format || 'txt'
+            sessionId: pentestResults?.sessionId || 'unknown',
+            findingCount: pentestResults?.attackResults?.vectors?.length || 0,
+            format: options.format || 'txt',
+            hasGrokReports: !!(pentestResults?.grokReports?.pentestReport?.content)
         });
-
         try {
+            const findingsArr = this.extractFindingsFromPentestResults(pentestResults);
+            const frameworks = this.normalizeFrameworks(options.complianceFrameworks);
+
             switch (options.format) {
                 case 'pdf':
-                    return await this.generateReliablePdfReport(findings, options);
+                    // 傳入 findings, pentestResults, options 三個參數
+                    return await this.generatePdfReport(findingsArr, pentestResults, { ...options, complianceFrameworks: frameworks });
                 case 'excel':
-                    return await this.generateExcelReport(findings, options);
+                    return await this.generateExcelReport(findingsArr, pentestResults, { ...options, complianceFrameworks: frameworks });
                 case 'txt':
                 default:
-                    return await this.generateTextReport(findings, options);
+                    return await this.generateTextReport(findingsArr, pentestResults, { ...options, complianceFrameworks: frameworks });
             }
         } catch (error) {
             Logger.error('報告生成失敗:', error.message);
@@ -32,119 +85,142 @@ class ComplianceReportService {
         }
     }
 
+
+
+
     // 🔥 方法 1: 生成文字報告 (您現有的功能)
-    async generateTextReport(findings, options = {}) {
+    async generateTextReport(pentestResults, options = {}) {
         Logger.info('📄 生成文字報告...');
 
-        const reportHeader = `侵國侵城 AI 合規分析報告
+        const sessionId = pentestResults?.sessionId || 'UNKNOWN';
+        const executiveSummary = pentestResults?.executiveSummary || {};
+        const attackResults = pentestResults?.attackResults || {};
+        const grokReports = pentestResults?.grokReports || {};
+        const geminiRecommendations = pentestResults?.geminiRecommendations || {};
 
+        const reportHeader = `侵國侵城 AI 滲透測試合規報告
+
+會話編號: ${sessionId}
 生成時間: ${new Date().toLocaleString('zh-TW')}
 報告格式: ${options.format}
-分析發現: ${findings.length} 項
+測試向量: ${executiveSummary.totalVectors || 0} 項
+成功攻擊: ${executiveSummary.successfulAttacks || 0} 項
+測試持續時間: ${executiveSummary.testDuration || 'N/A'}
 合規框架: ${options.complianceFrameworks?.join(', ') || 'ISO 27001, OWASP'}
 審計追蹤: ${options.includeAuditTrail ? '已包含' : '未包含'}`;
 
-        const executiveSummary = `
+        // ✅ 使用 Grok 生成的執行摘要內容
+        const executiveSummarySection = `
 === 執行摘要 ===
 
-本報告基於滲透測試結果和數位取證分析，針對 eKYC 系統進行全面的合規性評估。
+${this.extractExecutiveSummary(grokReports.pentestReport?.content)}
 
-主要發現：
-1. 發現 ${findings.length} 項安全議題需要關注
-2. 高風險項目需立即處理
-3. 個人資料保護法合規性需加強
-4. ISO 27001 控制措施實施不足
+測試結果統計：
+- 總測試向量: ${executiveSummary.totalVectors || 0} 項
+- 成功攻擊: ${executiveSummary.successfulAttacks || 0} 項
+- 失敗攻擊: ${executiveSummary.failedAttacks || 0} 項
+- 整體成功率: ${executiveSummary.overallSuccessRate || '0%'}
+- 風險等級: ${executiveSummary.riskLevel || 'UNKNOWN'}
 
-風險等級分佈：
-- 高風險: ${findings.filter(f => f.metadata?.severity === 'high').length} 項
-- 中風險: ${findings.filter(f => f.metadata?.severity === 'medium').length} 項  
-- 低風險: ${findings.filter(f => f.metadata?.severity === 'low').length} 項`;
+安全指標分析：
+- APCER (Attack Presentation Classification Error Rate): ${attackResults.metrics?.apcer || '0.00%'}
+- BPCER (Bona fide Presentation Classification Error Rate): ${attackResults.metrics?.bpcer || '0.00%'}
+- ACER (Average Classification Error Rate): ${attackResults.metrics?.acer || '0.00%'}
+- ROC AUC Score: ${attackResults.metrics?.rocAuc || '100.00%'}`;
 
+        // ✅ 使用 Grok 生成的技術分析內容
         const technicalAnalysis = `
-=== 技術面向分析 ===
+=== Grok AI 滲透測試分析 ===
 
-Web 應用程式安全：
-- SQL 注入漏洞需要立即修復
-- XSS 防護機制需要加強
-- 輸入驗證和輸出編碼需要改善
+${this.extractTechnicalAnalysis(grokReports.pentestReport?.content)}
 
-系統架構安全：
-- 存取控制機制需要檢討
-- 日誌監控功能需要強化
-- 備份和復原程序需要完善
+=== 攻擊者下次建議 (紅隊視角) ===
 
-建議改善措施：
-1. 實施 OWASP Top 10 防護措施
-2. 建立安全開發生命週期 (SDLC)
-3. 定期進行安全測試和評估`;
+${this.extractAttackRecommendations(grokReports.attackRecommendations?.content)}`;
 
+        // ✅ 使用 Gemini 生成的企業建議
+        const enterpriseRemediation = `
+=== Gemini AI 企業改善建議 ===
+
+${geminiRecommendations.enterpriseRemediation?.content || '⚠️ Gemini 企業改善建議服務暫時無法使用，建議聯繫技術支援以獲取完整的企業級改善方案。'}
+
+信心指數: ${Math.round((geminiRecommendations.enterpriseRemediation?.confidence || 0.5) * 100)}%
+使用知識庫來源: ${geminiRecommendations.enterpriseRemediation?.ragSourcesUsed || 0} 項
+
+=== 防禦策略建議 ===
+
+${geminiRecommendations.defenseStrategy?.content || '⚠️ 防禦策略建議服務暫時無法使用，建議參考 OWASP Top 10 和 ISO 27001 控制措施。'}`;
+
+        // ✅ 整合法律合規評估
         const legalCompliance = `
 === 法律合規評估 ===
 
+基於滲透測試結果的法律風險分析：
+
 個人資料保護法遵循：
-- 特種個人資料處理需要法律依據
-- 資料當事人權利保護機制需要建立
-- 資料外洩通報程序需要完善
+- eKYC 系統安全性評級: ${executiveSummary.riskLevel || 'UNKNOWN'}
+- 特種個人資料處理風險: ${executiveSummary.successfulAttacks > 0 ? '高風險' : '中等風險'}
+- 資料當事人權利保護: 需要加強身份驗證機制
+- 資料外洩通報準備: ${executiveSummary.successfulAttacks === 0 ? '目前無立即風險' : '需要立即檢視'}
 
 資通安全管理法遵循：
-- 資安事件通報機制需要建立
-- 資安防護基準需要符合
-- 資安稽核制度需要實施
+- 資安事件風險等級: ${this.calculateLegalRisk(executiveSummary)}
+- 資安防護基準符合度: ${executiveSummary.successfulAttacks === 0 ? '基本符合' : '需要改善'}
+- 資安稽核建議頻率: ${executiveSummary.riskLevel === 'HIGH' ? '每月' : '每季'}
 
 法律風險評估：
-- 個資洩露可能面臨新台幣 5 萬元以上 50 萬元以下罰鍰
-- 資安事件未通報可能面臨新台幣 30 萬元以上 150 萬元以下罰鍰`;
+${this.generateLegalRiskAssessment(executiveSummary, attackResults)}`;
 
-        const recommendations = `
-=== 改善建議與行動計畫 ===
+        const actionPlan = `
+=== 行動計畫與時程 ===
 
-優先處理項目 (1-30天)：
-1. 修復所有高風險安全漏洞
-2. 實施基本的輸入驗證機制
-3. 建立資安事件回應程序
-
-中期改善項目 (1-3個月)：
-1. 建立完整的資安管理制度
-2. 實施 ISO 27001 控制措施
-3. 加強員工資安教育訓練
-
-長期改善項目 (3-6個月)：
-1. 取得 ISO 27001 認證
-2. 建立持續性監控機制
-3. 定期進行合規性評估
+${this.generateActionPlan(executiveSummary, grokReports, geminiRecommendations)}
 
 ${options.includeAuditTrail ? `
-審計追蹤：
-- 測試執行時間: ${new Date().toISOString()}
-- 測試工具: Nessus, OWASP ZAP
-- 分析方法: 靜態分析 + 動態掃描
-- 報告生成: 自動化 RAG 系統
+=== 審計追蹤 ===
+
+測試執行詳情：
+- 會話 ID: ${sessionId}
+- 測試開始時間: ${pentestResults.metadata?.generatedAt || new Date().toISOString()}
+- 執行時間: ${pentestResults.metadata?.executionTime || 'N/A'}
+- AI 模型使用情況:
+  * 攻擊分析: ${pentestResults.metadata?.aiModels?.attackAnalysis || 'N/A'}
+  * 企業改善建議: ${pentestResults.metadata?.aiModels?.enterpriseRemediation || 'N/A'}
+  * 知識庫: ${pentestResults.metadata?.aiModels?.knowledgeBase || 'N/A'}
+- 知識庫來源數量: ${pentestResults.ragContext?.totalSources || 0}
+- 系統版本: ${pentestResults.metadata?.version || 'N/A'}
 ` : '審計追蹤資訊已省略'}`;
 
         const fullReport = `${reportHeader}
 
-${executiveSummary}
+${executiveSummarySection}
 
 ${technicalAnalysis}
 
+${enterpriseRemediation}
+
 ${legalCompliance}
 
-${recommendations}
+${actionPlan}
 
 ---
 本報告由侵國侵城 AI 系統自動生成
+會話編號: ${sessionId}
 報告編號: COMPLIANCE-${Date.now()}
 國立臺中科技大學 侵國侵城團隊
+© 2025 InnoServe 創新服務團隊
         `;
 
         Logger.success('✅ 文字報告生成完成');
         return Buffer.from(fullReport, 'utf8');
     }
 
+
+
     // 🔥 方法 2: 生成 PDF 報告 (簡化中文版)
     // 🔥 修改這個方法以支援中文 PDF
-    async generatePdfReport(findings, options = {}) {
-        Logger.info('📄 生成中文 PDF 報告（使用 Puppeteer）...');
+    async generatePdfReport(findings, pentestResults, options) {
+        Logger.info('📄 生成 PDF 報告（Puppeteer 優化版）...');
 
         const puppeteer = require('puppeteer');
 
@@ -159,22 +235,34 @@ ${recommendations}
                     '--no-first-run',
                     '--no-zygote',
                     '--single-process',
-                    '--disable-gpu'
+                    '--disable-gpu',
+                    // ✅ 新增：支援中文字體
+                    '--font-render-hinting=none',
+                    '--disable-font-subpixel-positioning',
+                    '--allow-fonts-fallback'
                 ]
             });
 
             const page = await browser.newPage();
 
-            // 設定頁面大小
+            // ✅ 設定頁面編碼
+            await page.setExtraHTTPHeaders({
+                'Accept-Charset': 'utf-8'
+            });
+
             await page.setViewport({ width: 1200, height: 1600 });
 
-            // 生成 HTML 內容
+            // ✅ 修正後的 HTML 內容（強化中文支援）
             const htmlContent = this.generateChineseHtmlContent(findings, options);
 
+            // ✅ 確保正確的編碼設定
             await page.setContent(htmlContent, {
                 waitUntil: 'networkidle0',
                 timeout: 30000
             });
+
+            // ✅ 等待字體載入
+            await page.evaluateHandle('document.fonts.ready');
 
             const pdfBuffer = await page.pdf({
                 format: 'A4',
@@ -186,649 +274,341 @@ ${recommendations}
                 },
                 printBackground: true,
                 displayHeaderFooter: true,
-                headerTemplate: `
-                <div style="font-size: 10px; color: #666; width: 100%; text-align: center; margin-top: 10px;">
-                    侵國侵城 AI 合規分析報告
-                </div>
-            `,
-                footerTemplate: `
-                <div style="font-size: 10px; color: #666; width: 100%; text-align: center; margin-bottom: 10px;">
-                    第 <span class="pageNumber"></span> 頁，共 <span class="totalPages"></span> 頁 | 
-                    報告編號：COMPLIANCE-${Date.now()}
-                </div>
-            `
+                // ✅ 修正 Header 和 Footer 編碼
+                headerTemplate: `<div style="font-size: 10px; color: #666; width: 100%; text-align: center; margin-top: 10px; font-family: 'Noto Sans TC', sans-serif;">侵國侵城 AI 合規報告</div>`,
+                footerTemplate: `<div style="font-size: 10px; color: #666; width: 100%; text-align: center; margin-bottom: 10px; font-family: 'Noto Sans TC', sans-serif;"><span class="pageNumber"></span> / <span class="totalPages"></span> | COMPLIANCE-${Date.now()}</div>`,
+                // ✅ 新增：指定字體嵌入
+                preferCSSPageSize: true
             });
 
             await browser.close();
 
-            Logger.success('✅ 中文 PDF 報告生成完成', {
-                size: pdfBuffer.length,
-                pages: '多頁專業報告'
-            });
-
+            Logger.success('✅ PDF 報告生成完成', { size: pdfBuffer.length });
             return pdfBuffer;
 
         } catch (error) {
-            Logger.error('中文 PDF 生成失敗:', error);
-
-            // 如果 Puppeteer 失敗，回到簡化 PDF 版本
-            Logger.warn('⚠️ 回退到簡化 PDF 版本');
-            return await this.generateSimplePdfReport(findings, options);
+            Logger.error('❌ Puppeteer PDF 生成失敗', error);
+            Logger.warn('⚠️ 切換到 PDFKit 備用方案');
+            return await this.generateReliablePdfReport(findings, pentestResults, options);
         }
     }
 
+
     // 🔥 添加這個新方法來生成 HTML 內容
-    generateChineseHtmlContent(findings, options = {}) {
+    generateChineseHtmlContent(findings, options) {
         const highRisk = findings.filter(f => f.metadata?.severity === 'high').length;
         const mediumRisk = findings.filter(f => f.metadata?.severity === 'medium').length;
         const lowRisk = findings.filter(f => f.metadata?.severity === 'low').length;
+        const path = require('path');
+        const fs = require('fs');
 
-        return `
-    <!DOCTYPE html>
-    <html lang="zh-TW">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>侵國侵城 AI 合規分析報告</title>
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
-            
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-            
-            body {
-                font-family: 'Noto Sans TC', 'Microsoft JhengHei', '微軟正黑體', Arial, sans-serif;
-                line-height: 1.7;
-                color: #2c3e50;
-                background: #fff;
-                font-size: 14px;
-            }
-            
-            .container {
-                max-width: 100%;
-                margin: 0 auto;
-                padding: 20px;
-            }
-            
-            /* 封面樣式 */
+        const variableFontPath = path.resolve(process.cwd(), 'assets/fonts/NotoSansTC-VariableFont_wght.ttf');
+
+        // 檢查檔案是否存在
+        const fontExists = fs.existsSync(variableFontPath);
+
+        const fontFace = fontExists ? `
+@font-face {
+  font-family: 'Noto Sans TC';
+  src: url('file:///${variableFontPath.replace(/\\/g, '/')}') format('truetype');
+  font-weight: 100 900; /* Variable Font 支援多種字重 */
+  font-style: normal;
+}` : '';
+
+        return `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>侵國侵城 AI 合規報告</title>
+    
+    <style>
+        @charset "UTF-8";
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft JhengHei', '微軟正黑體', 'PingFang TC', 'Hiragino Sans GB', 'Heiti TC', Arial, sans-serif;
+            line-height: 1.7;
+            color: #2c3e50;
+            background: #fff;
+            font-size: 14px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        
+        .cover {
+            text-align: center;
+            padding: 100px 0 80px 0;
+            border-bottom: 4px solid #3498db;
+            margin-bottom: 60px;
+            page-break-after: always;
+        }
+        
+        .cover h1 {
+            font-size: 42px;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+        
+        .cover h2 {
+            font-size: 28px;
+            color: #34495e;
+            margin-bottom: 40px;
+            font-weight: 400;
+        }
+        
+        .meta {
+            font-size: 16px;
+            color: #7f8c8d;
+            margin: 8px 0;
+        }
+        
+        /* ✅ 確保 Emoji 正確顯示 */
+        .logo {
+            font-size: 80px;
+            margin: 40px 0;
+            font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', sans-serif;
+        }
+        
+        .icon {
+            font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', sans-serif;
+            margin-right: 8px;
+        }
+        
+        .org {
+            margin: 40px 0;
+            font-size: 18px;
+            line-height: 2;
+        }
+        
+        .warning {
+            background: #fee2e2;
+            border: 2px solid #dc2626;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 40px auto;
+            max-width: 500px;
+            color: #7f1d1d;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        
+        .section {
+            margin: 40px 0;
+            page-break-inside: avoid;
+        }
+        
+        h2 {
+            font-size: 24px;
+            color: #1a365d;
+            margin: 30px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        h3 {
+            font-size: 18px;
+            color: #2b6cb0;
+            margin: 25px 0 15px 0;
+        }
+        
+        h4 {
+            font-size: 16px;
+            color: #2d3748;
+            margin: 20px 0 10px 0;
+        }
+        
+        p {
+            margin: 12px 0;
+            line-height: 1.8;
+        }
+        
+        .emphasis {
+            font-weight: 600;
+            color: #2b6cb0;
+        }
+        
+        .data-point {
+            font-weight: 700;
+            color: #3182ce;
+            font-size: 18px;
+        }
+        
+        .highlight-box {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .risk-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        
+        .risk-item {
+            text-align: center;
+            padding: 25px;
+            border-radius: 12px;
+            min-width: 150px;
+            margin: 10px;
+        }
+        
+        .risk-high {
+            background: #fee2e2;
+            border: 2px solid #dc2626;
+        }
+        
+        .risk-medium {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+        }
+        
+        .risk-low {
+            background: #d1fae5;
+            border: 2px solid #10b981;
+        }
+        
+        .risk-number {
+            display: block;
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .risk-high .risk-number { color: #dc2626; }
+        .risk-medium .risk-number { color: #f59e0b; }
+        .risk-low .risk-number { color: #10b981; }
+        
+        .risk-label {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        ul {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        
+        li {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        
+        .page-break {
+            page-break-after: always;
+        }
+        
+        @media print {
             .cover {
-                text-align: center;
-                padding: 150px 0 100px 0;
-                border-bottom: 4px solid #3498db;
-                margin-bottom: 60px;
                 page-break-after: always;
             }
-            
-            .cover h1 {
-                font-size: 42px;
-                color: #2c3e50;
-                margin-bottom: 25px;
-                font-weight: 700;
-                letter-spacing: 2px;
-            }
-            
-            .cover h2 {
-                font-size: 28px;
-                color: #34495e;
-                margin-bottom: 40px;
-                font-weight: 400;
-            }
-            
-            .cover .meta {
-                font-size: 18px;
-                color: #7f8c8d;
-                margin-bottom: 15px;
-                line-height: 1.8;
-            }
-            
-            .cover .logo {
-                font-size: 120px;
-                margin: 50px 0;
-                text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-            }
-            
-            .cover .org {
-                font-size: 20px;
-                color: #2c3e50;
-                margin-top: 50px;
-                line-height: 1.6;
-            }
-            
-            .cover .warning {
-                background: #fff3cd;
-                border: 2px solid #ffeaa7;
-                padding: 15px;
-                margin-top: 40px;
-                border-radius: 8px;
-                color: #856404;
-                font-weight: 500;
-            }
-            
-            /* 內容樣式 */
             .section {
-                margin: 50px 0;
                 page-break-inside: avoid;
             }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 封面 -->
+        <div class="cover">
+            <h1>侵國侵城 AI</h1>
+            <h2>資訊安全合規分析報告</h2>
+            <div class="meta">eKYC 系統安全評估</div>
+            <div class="meta">${new Date().toLocaleString('zh-TW', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        })}</div>
+            <div class="meta">版本 1.0.0</div>
+            <div class="meta">${options.complianceFrameworks?.join(', ') || 'ISO 27001, OWASP'}</div>
             
-            .section h2 {
-                font-size: 28px;
-                color: #2c3e50;
-                border-bottom: 3px solid #3498db;
-                padding-bottom: 15px;
-                margin-bottom: 30px;
-                font-weight: 600;
-                page-break-after: avoid;
-            }
+            <!-- ✅ Emoji 應該可以正常顯示 -->
+            <div class="logo">&#x1F6E1;&#xFE0F;</div>
             
-            .section h3 {
-                font-size: 22px;
-                color: #34495e;
-                margin: 30px 0 15px 0;
-                font-weight: 500;
-                page-break-after: avoid;
-            }
-            
-            .section h4 {
-                font-size: 18px;
-                color: #2c3e50;
-                margin: 20px 0 10px 0;
-                font-weight: 500;
-            }
-            
-            .section p {
-                margin-bottom: 18px;
-                text-align: justify;
-                line-height: 1.8;
-            }
-            
-            .section ul, .section ol {
-                margin: 20px 0;
-                padding-left: 35px;
-            }
-            
-            .section li {
-                margin-bottom: 12px;
-                line-height: 1.6;
-            }
-            
-            /* 風險統計卡片 */
-            .risk-stats {
-                display: flex;
-                justify-content: space-around;
-                margin: 40px 0;
-                flex-wrap: wrap;
-                gap: 20px;
-            }
-            
-            .risk-item {
-                text-align: center;
-                padding: 25px;
-                border-radius: 12px;
-                min-width: 180px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-                flex: 1;
-                transition: transform 0.3s ease;
-            }
-            
-            .risk-high {
-                background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-                color: white;
-            }
-            
-            .risk-medium {
-                background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-                color: white;
-            }
-            
-            .risk-low {
-                background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
-                color: white;
-            }
-            
-            .risk-number {
-                font-size: 48px;
-                font-weight: 700;
-                display: block;
-                margin-bottom: 15px;
-                text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-            }
-            
-            .risk-label {
-                font-size: 18px;
-                font-weight: 500;
-                letter-spacing: 1px;
-            }
-            
-            /* 建議分組樣式 */
-            .recommendation-group {
-                margin: 35px 0;
-                padding: 25px;
-                border-left: 6px solid #3498db;
-                background: #f8f9fa;
-                border-radius: 0 10px 10px 0;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                page-break-inside: avoid;
-            }
-            
-            .recommendation-group.urgent {
-                border-color: #e74c3c;
-                background: linear-gradient(135deg, #fdf2f2 0%, #fef5f5 100%);
-            }
-            
-            .recommendation-group.medium {
-                border-color: #f39c12;
-                background: linear-gradient(135deg, #fef9f3 0%, #fefbf6 100%);
-            }
-            
-            .recommendation-group.long-term {
-                border-color: #27ae60;
-                background: linear-gradient(135deg, #f2f8f4 0%, #f5faf6 100%);
-            }
-            
-            .recommendation-group h4 {
-                color: #2c3e50;
-                margin-bottom: 20px;
-                font-size: 20px;
-                font-weight: 600;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-            
-            .recommendation-group.urgent h4 {
-                color: #e74c3c;
-            }
-            
-            .recommendation-group.medium h4 {
-                color: #f39c12;
-            }
-            
-            .recommendation-group.long-term h4 {
-                color: #27ae60;
-            }
-            
-            /* 表格樣式 */
-            .info-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 25px 0;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                border-radius: 8px;
-                overflow: hidden;
-            }
-            
-            .info-table th,
-            .info-table td {
-                padding: 18px 20px;
-                text-align: left;
-                border-bottom: 1px solid #e0e0e0;
-            }
-            
-            .info-table th {
-                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-                color: white;
-                font-weight: 600;
-                font-size: 16px;
-                letter-spacing: 0.5px;
-            }
-            
-            .info-table tr:nth-child(even) {
-                background: #f8f9fa;
-            }
-            
-            .info-table tr:hover {
-                background: #e3f2fd;
-            }
-            
-            /* 重點框 */
-            .highlight-box {
-                background: linear-gradient(135deg, #e3f2fd 0%, #f0f7ff 100%);
-                border: 2px solid #2196f3;
-                border-left: 6px solid #1976d2;
-                padding: 25px;
-                margin: 30px 0;
-                border-radius: 8px;
-                box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-            }
-            
-            .highlight-box h4 {
-                color: #1565c0;
-                margin-bottom: 15px;
-                font-size: 18px;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-            
-            /* 警告框 */
-            .warning-box {
-                background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%);
-                border: 2px solid #ffc107;
-                border-left: 6px solid #ff8f00;
-                padding: 25px;
-                margin: 30px 0;
-                border-radius: 8px;
-                box-shadow: 0 3px 10px rgba(255, 193, 7, 0.2);
-            }
-            
-            .warning-box h4 {
-                color: #e65100;
-                margin-bottom: 15px;
-                font-size: 18px;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-            
-            .warning-box p {
-                color: #bf360c;
-                margin: 8px 0;
-                font-weight: 500;
-            }
-            
-            /* 分頁 */
-            .page-break {
-                page-break-before: always;
-            }
-            
-            /* 頁腳樣式 */
-            .footer {
-                margin-top: 80px;
-                padding-top: 40px;
-                border-top: 3px solid #bdc3c7;
-                text-align: center;
-                color: #7f8c8d;
-                font-size: 16px;
-                page-break-inside: avoid;
-            }
-            
-            .footer .report-id {
-                font-weight: 600;
-                color: #2c3e50;
-                margin-bottom: 15px;
-                font-size: 18px;
-            }
-            
-            .footer .copyright {
-                margin-top: 20px;
-                font-size: 14px;
-                color: #95a5a6;
-            }
-            
-            /* 圖標樣式 */
-            .icon {
-                font-size: 1.2em;
-                margin-right: 8px;
-            }
-            
-            /* 強調文字 */
-            .emphasis {
-                background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-                padding: 3px 8px;
-                border-radius: 4px;
-                font-weight: 500;
-                color: #e65100;
-            }
-            
-            /* 數據展示 */
-            .data-point {
-                display: inline-block;
-                background: #e8f5e8;
-                padding: 8px 16px;
-                border-radius: 20px;
-                margin: 5px;
-                color: #2e7d32;
-                font-weight: 600;
-                border: 2px solid #4caf50;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <!-- 封面 -->
-            <div class="cover">
-                <h1>侵國侵城 AI</h1>
-                <h2>合規分析報告</h2>
-                <div class="meta">eKYC 系統安全合規評估</div>
-                <div class="meta">生成時間：${new Date().toLocaleString('zh-TW')}</div>
-                <div class="meta">版本：1.0.0</div>
-                <div class="meta">合規框架：${options.complianceFrameworks?.join('、') || 'ISO 27001、OWASP'}</div>
-                <div class="logo">🛡️</div>
-                <div class="org">
-                    <strong>國立臺中科技大學</strong><br>
-                    <strong>侵國侵城團隊</strong><br>
-                    <span style="font-size: 16px; color: #7f8c8d; margin-top: 10px; display: inline-block;">
-                        2025 InnoServe 大專校院資訊應用服務創新競賽
-                    </span>
-                </div>
-                <div class="warning">
-                    <strong>⚠️ 機密文件</strong><br>
-                    本報告包含敏感安全資訊，僅供授權人員查閱，請妥善保管
-                </div>
+            <div class="org">
+                <strong>國立臺中科技大學</strong><br>
+                <strong>侵國侵城專案團隊</strong><br>
+                <span style="font-size: 16px; color: #7f8c8d; margin-top: 10px; display: inline-block;">© 2025 InnoServe 創新服務團隊</span>
             </div>
-
-            <!-- 執行摘要 -->
-            <div class="section">
-                <h2><span class="icon">📋</span>執行摘要</h2>
-                <p>
-                    本報告基於滲透測試結果和數位取證分析，針對 <span class="emphasis">eKYC 系統</span> 進行全面的合規性評估。
-                    報告涵蓋<strong>技術、法律與資安</strong>三大面向，並提供具體的改善建議和行動計畫，
-                    確保系統符合國內外相關法規標準。
-                </p>
-                
-                <div class="highlight-box">
-                    <h4><span class="icon">🎯</span>評估範圍</h4>
-                    <p>
-                        本次評估涵蓋 Web 應用程式安全、系統架構安全、個人資料保護法合規性、
-                        資通安全管理法要求，以及 ISO 27001 和 OWASP 標準符合性檢查。
-                        總計發現 <span class="data-point">${findings.length} 項</span> 安全議題需要關注。
-                    </p>
-                </div>
-                
-                <h3><span class="icon">📊</span>風險等級分佈</h3>
-                <div class="risk-stats">
-                    <div class="risk-item risk-high">
-                        <span class="risk-number">${highRisk}</span>
-                        <span class="risk-label">高風險項目</span>
-                    </div>
-                    <div class="risk-item risk-medium">
-                        <span class="risk-number">${mediumRisk}</span>
-                        <span class="risk-label">中風險項目</span>
-                    </div>
-                    <div class="risk-item risk-low">
-                        <span class="risk-number">${lowRisk}</span>
-                        <span class="risk-label">低風險項目</span>
-                    </div>
-                </div>
-
-                <h3><span class="icon">🔍</span>主要發現</h3>
-                <ul>
-                    <li>發現 <strong>${findings.length}</strong> 項安全議題需要關注，其中 <span class="emphasis">${highRisk} 項高風險</span> 需立即處理</li>
-                    <li><strong>個人資料保護法合規性</strong>需要加強，特別是特種個人資料的處理機制</li>
-                    <li><strong>ISO 27001 控制措施</strong>實施不足，需要建立完整的資安管理制度</li>
-                    <li><strong>OWASP Top 10</strong> 安全風險防護需要改善，Web 應用程式存在多項漏洞</li>
-                    <li><strong>資通安全管理法</strong>要求的通報機制和防護基準需要完善</li>
-                </ul>
-            </div>
-
-            <!-- 技術面向分析 -->
-            <div class="section page-break">
-                <h2><span class="icon">⚙️</span>技術面向分析</h2>
-                
-                <h3><span class="icon">🌐</span>Web 應用程式安全</h3>
-                <ul>
-                    <li><strong>SQL 注入漏洞</strong> - 需要立即修復，可能導致資料庫資料洩露，涉及個資法違規風險</li>
-                    <li><strong>XSS 跨站腳本攻擊</strong> - 需要加強防護，實施內容安全政策 (CSP) 和輸出編碼</li>
-                    <li><strong>輸入驗證機制</strong> - 需要改善，建立完整的資料驗證和清理機制</li>
-                    <li><strong>Session 管理</strong> - 需要檢討會話安全機制，防止會話劫持攻擊</li>
-                    <li><strong>檔案上傳安全</strong> - 需要加強檔案類型檢查和惡意檔案防護</li>
-                </ul>
-
-                <h3><span class="icon">🏗️</span>系統架構安全</h3>
-                <ul>
-                    <li><strong>存取控制機制</strong> - 需要檢討並實施最小權限原則，建立角色基礎存取控制</li>
-                    <li><strong>日誌監控功能</strong> - 需要強化安全事件記錄和即時監控能力</li>
-                    <li><strong>備份和復原程序</strong> - 需要完善資料備份策略和災害復原計畫</li>
-                    <li><strong>網路分段</strong> - 需要改善網路架構，實施適當的網路隔離和流量控制</li>
-                    <li><strong>加密傳輸</strong> - 需要確保所有敏感資料傳輸都使用強加密協議</li>
-                </ul>
-
-                <div class="highlight-box">
-                    <h4><span class="icon">🛠️</span>建議改善措施</h4>
-                    <ol>
-                        <li><strong>實施 OWASP Top 10 防護措施</strong> - 建立全面的 Web 應用程式安全防護</li>
-                        <li><strong>建立安全開發生命週期 (SDLC)</strong> - 將安全檢查整合到開發流程中</li>
-                        <li><strong>定期安全測試和評估</strong> - 建立持續性的安全驗證機制</li>
-                        <li><strong>加強員工資安意識培訓</strong> - 提升開發和維運團隊的安全技能</li>
-                    </ol>
-                </div>
-            </div>
-
-            <!-- 法律合規評估 -->
-            <div class="section page-break">
-                <h2><span class="icon">⚖️</span>法律合規評估</h2>
-                
-                <h3><span class="icon">🛡️</span>個人資料保護法遵循</h3>
-                <ul>
-                    <li><strong>特種個人資料處理</strong> - 生物特徵資料需要明確的法律依據或當事人書面同意</li>
-                    <li><strong>資料當事人權利</strong> - 需要建立查詢、更正、刪除等權利行使機制</li>
-                    <li><strong>資料外洩通報</strong> - 需要完善 72 小時內通報主管機關的程序</li>
-                    <li><strong>同意機制</strong> - eKYC 系統需要建立明確、具體的同意取得機制</li>
-                    <li><strong>資料國際傳輸</strong> - 如有跨境傳輸需求，需符合適足性認定要求</li>
-                </ul>
-
-                <h3><span class="icon">🔒</span>資通安全管理法遵循</h3>
-                <ul>
-                    <li><strong>資安事件通報機制</strong> - 需要建立符合法規要求的通報流程和時效</li>
-                    <li><strong>資安防護基準</strong> - 需要符合主管機關訂定的防護標準</li>
-                    <li><strong>資安稽核制度</strong> - 需要實施定期的資安稽核和檢查機制</li>
-                    <li><strong>資安人員培訓</strong> - 需要加強相關人員的資安專業能力</li>
-                    <li><strong>供應商管理</strong> - 需要建立供應商資安管理和查核機制</li>
-                </ul>
-
-                <div class="warning-box">
-                    <h4><span class="icon">⚠️</span>法律風險評估</h4>
-                    <p><strong>個資洩露風險：</strong>新台幣 5 萬元以上 50 萬元以下罰鍰</p>
-                    <p><strong>資安事件未通報：</strong>新台幣 30 萬元以上 150 萬元以下罰鍰</p>
-                    <p><strong>民事賠償責任：</strong>依個資法第 28 條，每人每事件最高新台幣 20 萬元</p>
-                    <p><strong>刑事責任風險：</strong>可能涉及刑法第 359 條妨害電腦使用罪</p>
-                </div>
-            </div>
-
-            <!-- 改善建議與行動計畫 -->
-            <div class="section page-break">
-                <h2><span class="icon">📋</span>改善建議與行動計畫</h2>
-                
-                <div class="recommendation-group urgent">
-                    <h4><span class="icon">🚨</span>緊急處理項目 (1-30天)</h4>
-                    <ol>
-                        <li><strong>修復所有高風險安全漏洞</strong> - 優先處理 SQL 注入和存取控制問題</li>
-                        <li><strong>實施基本輸入驗證機制</strong> - 建立資料驗證和清理標準流程</li>
-                        <li><strong>建立資安事件回應程序</strong> - 制定事件分類、通報和處理標準作業程序</li>
-                        <li><strong>加強存取控制機制</strong> - 實施多因子認證和最小權限原則</li>
-                        <li><strong>建立資料外洩通報機制</strong> - 確保符合個資法 72 小時通報要求</li>
-                    </ol>
-                </div>
-
-                <div class="recommendation-group medium">
-                    <h4><span class="icon">⏰</span>中期改善項目 (1-3個月)</h4>
-                    <ol>
-                        <li><strong>建立完整資安管理制度</strong> - 制定資安政策、程序和標準</li>
-                        <li><strong>實施 ISO 27001 控制措施</strong> - 建立資訊安全管理系統 (ISMS)</li>
-                        <li><strong>加強員工資安教育訓練</strong> - 定期進行安全意識和技能培訓</li>
-                        <li><strong>建立定期安全測試機制</strong> - 實施滲透測試和弱點掃描</li>
-                        <li><strong>完善個資保護機制</strong> - 建立資料分類、加密和存取控制標準</li>
-                    </ol>
-                </div>
-
-                <div class="recommendation-group long-term">
-                    <h4><span class="icon">📈</span>長期改善項目 (3-6個月)</h4>
-                    <ol>
-                        <li><strong>取得 ISO 27001 認證</strong> - 通過第三方驗證，提升資安管理水準</li>
-                        <li><strong>建立持續性監控機制</strong> - 實施 SIEM 和 SOC 安全監控中心</li>
-                        <li><strong>定期合規性評估</strong> - 建立季度和年度的合規檢查機制</li>
-                        <li><strong>供應商安全管理制度</strong> - 建立供應商資安評估和管理標準</li>
-                        <li><strong>建立業務持續計畫</strong> - 制定災害復原和業務持續營運計畫</li>
-                    </ol>
-                </div>
-            </div>
-
-            ${options.includeAuditTrail ? `
-            <!-- 審計追蹤 -->
-            <div class="section page-break">
-                <h2><span class="icon">🔍</span>審計追蹤記錄</h2>
-                
-                <table class="info-table">
-                    <thead>
-                        <tr>
-                            <th>項目</th>
-                            <th>內容</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>測試執行時間</td>
-                            <td>${new Date().toLocaleString('zh-TW')}</td>
-                        </tr>
-                        <tr>
-                            <td>測試工具</td>
-                            <td>Nessus Professional, OWASP ZAP, 自訂安全掃描器</td>
-                        </tr>
-                        <tr>
-                            <td>分析方法</td>
-                            <td>靜態程式碼分析 + 動態滲透測試 + 手工驗證</td>
-                        </tr>
-                        <tr>
-                            <td>報告生成系統</td>
-                            <td>侵國侵城 AI RAG 智能分析系統</td>
-                        </tr>
-                        <tr>
-                            <td>資料來源</td>
-                            <td>pgvector 向量資料庫 + 法規知識庫</td>
-                        </tr>
-                        <tr>
-                            <td>AI 模型</td>
-                            <td>qinguoqinchen-legal-embedder-v1.0 (1024維向量)</td>
-                        </tr>
-                        <tr>
-                            <td>合規框架</td>
-                            <td>${options.complianceFrameworks?.join('、') || 'ISO 27001、OWASP Top 10、個資法、資安法'}</td>
-                        </tr>
-                        <tr>
-                            <td>測試範圍</td>
-                            <td>eKYC 系統完整功能模組及相關基礎設施</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="warning-box">
-                    <h4><span class="icon">📋</span>重要聲明與免責條款</h4>
-                    <p><strong>測試範圍限制：</strong>本報告僅反映測試當時的系統狀態，不保證未來的安全性</p>
-                    <p><strong>建議實施：</strong>實施任何建議前請諮詢相關法律和技術專家</p>
-                    <p><strong>機密保護：</strong>本報告包含敏感安全資訊，請嚴格控制閱讀權限</p>
-                    <p><strong>持續改善：</strong>建議建立持續性的安全評估和改善機制</p>
-                </div>
-            </div>
-            ` : ''}
-
-            <!-- 頁腳 -->
-            <div class="footer">
-                <div class="report-id">報告編號：COMPLIANCE-${Date.now()}</div>
-                <div>本報告由侵國侵城 AI 系統自動生成</div>
-                <div><strong>© 2025 國立臺中科技大學 侵國侵城團隊</strong></div>
-                <div class="copyright">
-                    🛡️ 專業的 eKYC 系統安全測試平台 | 整合多重 AI 引擎和 RAG 技術<br>
-                    2025 InnoServe 大專校院資訊應用服務創新競賽參賽作品
-                </div>
+            
+            <div class="warning">
+                <strong>機密文件</strong><br>
+                本報告包含敏感資安資訊，僅供授權人員閱覽
             </div>
         </div>
-    </body>
-    </html>
-    `;
+
+        <!-- 執行摘要 -->
+        <div class="section">
+            <h2><span class="icon">&#x1F4CB;</span>執行摘要</h2>
+            
+            <p>本次<span class="emphasis">eKYC 系統</span>安全評估針對技術、法規與安全三個面向進行<strong>全面檢測</strong>。評估涵蓋網頁應用程式安全、ISO 27001 合規性、OWASP 最佳實務與 <span class="data-point">${findings.length}</span> 項安全議題分析。</p>
+            
+            <div class="highlight-box">
+                <h4><span class="icon">&#x1F3AF;</span>評估重點</h4>
+                <ul>
+                    <li>網頁應用程式安全測試</li>
+                    <li>ISO 27001 合規性審查</li>
+                    <li>OWASP Top 10 風險評估</li>
+                    <li>個人資料保護法遵循檢視</li>
+                    <li>系統架構安全分析</li>
+                </ul>
+            </div>
+
+            <h3><span class="icon">&#x26A0;&#xFE0F;</span>風險概覽</h3>
+            <div class="risk-stats">
+                <div class="risk-item risk-high">
+                    <span class="risk-number">${highRisk}</span>
+                    <span class="risk-label">高風險</span>
+                </div>
+                <div class="risk-item risk-medium">
+                    <span class="risk-number">${mediumRisk}</span>
+                    <span class="risk-label">中風險</span>
+                </div>
+                <div class="risk-item risk-low">
+                    <span class="risk-number">${lowRisk}</span>
+                    <span class="risk-label">低風險</span>
+                </div>
+            </div>
+
+            <h3><span class="icon">&#x1F4CC;</span>主要發現</h3>
+            <ul>
+                <li>發現 ${findings.length} 項安全議題需要關注</li>
+                <li>高風險項目需要立即處理以防止資料外洩</li>
+                <li>個人資料保護法合規性需要加強</li>
+                <li>ISO 27001 控制措施實施存在顯著差距</li>
+                <li>OWASP Top 10 安全風險需要全面緩解</li>
+            </ul>
+        </div>
+        
+        <!-- 其他章節... -->
+        
+    </div>
+</body>
+</html>`;
     }
+
 
     // 🔥 添加回退方法（如果 Puppeteer 失敗時使用）
     async generateSimplePdfReport(findings, options = {}) {
@@ -1061,57 +841,64 @@ ${recommendations}
         }
     }
 
-    // 🔥 最實用的解決方案：直接使用 PDFKit 生成中文友好的 PDF
-    async generatePdfReport(findings, options = {}) {
-        Logger.info('📄 生成 PDF 報告（跳過 Puppeteer，使用可靠方案）...');
-
-        // 直接使用 PDFKit 生成英文版 PDF
-        return await this.generateReliablePdfReport(findings, options);
-    }
 
     // 新增可靠的 PDF 生成方法
-    async generateReliablePdfReport(findings, options = {}) {
+    async generateReliablePdfReport(findings, pentestResults, options) {
         Logger.info('📄 生成可靠的 PDF 報告...');
-
         return new Promise((resolve, reject) => {
             try {
                 const doc = new PDFDocument({
                     margin: 50,
                     size: 'A4',
                     info: {
-                        Title: 'QinGuoQinCheng AI Compliance Report',
-                        Author: 'QinGuoQinCheng Team',
-                        Subject: 'eKYC System Security Assessment',
-                        Creator: 'QinGuoQinCheng AI System'
+                        Title: '侵國侵城 AI 合規報告',
+                        Author: '侵國侵城團隊',
+                        Subject: 'eKYC 系統安全評估',
+                        Creator: '侵國侵城 AI 系統'
                     }
                 });
 
                 const buffers = [];
                 doc.on('data', buffers.push.bind(buffers));
-                doc.on('end', () => {
-                    const pdfBuffer = Buffer.concat(buffers);
-                    Logger.success('✅ 可靠的 PDF 報告生成完成', {
-                        size: pdfBuffer.length
-                    });
-                    resolve(pdfBuffer);
-                });
+                doc.on('end', () => resolve(Buffer.concat(buffers)));
+                doc.on('error', (e) => reject(e));
 
-                // === 專業封面 ===
-                this.addProfessionalCover(doc, findings, options);
+                // ✅ 修正:使用你實際的 Variable Font 路徑
+                try {
+                    const path = require('path');
+                    const fs = require('fs');
 
-                // === 執行摘要 ===
+                    // 使用相對路徑(相對於專案根目錄)
+                    const fontPath = path.resolve(process.cwd(), 'assets/fonts/NotoSansTC-VariableFont_wght.ttf');
+
+                    // ✅ 驗證檔案是否存在
+                    if (!fs.existsSync(fontPath)) {
+                        throw new Error(`字型檔案不存在: ${fontPath}`);
+                    }
+
+                    // ✅ 註冊字型
+                    doc.registerFont('NotoSansTC', fontPath);
+                    doc.font('NotoSansTC');
+                    Logger.info('✅ 成功載入中文字型', { fontPath });
+
+                } catch (error) {
+                    Logger.warn('⚠️ 無法載入中文字體，使用預設字體', error.message);
+                    doc.font('Helvetica');
+                }
+
+                // ✅ 生成封面
+                this.addProfessionalCover(doc, findings, pentestResults, options);
+
+                // ✅ 後續章節
                 doc.addPage();
-                this.addExecutiveSummary(doc, findings);
+                this.addExecutiveSummary(doc, findings, pentestResults);
 
-                // === 技術分析 ===
                 doc.addPage();
-                this.addTechnicalAnalysis(doc, findings);
+                this.addTechnicalAnalysis(doc, findings, pentestResults);
 
-                // === 建議 ===
                 doc.addPage();
                 this.addRecommendations(doc, findings);
 
-                // === 審計追蹤 ===
                 if (options.includeAuditTrail) {
                     doc.addPage();
                     this.addAuditTrail(doc, options);
@@ -1120,40 +907,53 @@ ${recommendations}
                 doc.end();
 
             } catch (error) {
-                Logger.error('可靠 PDF 生成錯誤:', error.message);
+                Logger.error('❌ 可靠的 PDF 生成失敗', error.message);
                 reject(error);
             }
         });
     }
 
+
+
+    normalizeFrameworks(fr) {
+        if (!fr) return ['ISO_27001', 'OWASP'];
+        if (Array.isArray(fr)) return fr;
+        if (typeof fr === 'string') {
+            try {
+                const parsed = JSON.parse(fr);
+                if (Array.isArray(parsed)) return parsed;
+            } catch { }
+            return fr.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return ['ISO_27001', 'OWASP'];
+    }
+
+
     // 添加專業封面
     addProfessionalCover(doc, findings, options) {
         // 標題
-        doc.fontSize(28)
-            .fillColor('#1a365d')
-            .text('QinGuoQinCheng AI', 50, 120, { align: 'center' });
+        doc.fontSize(28).fillColor('#1a365d').text('QinGuoQinCheng AI', 50, 120, { align: 'center' });
+        doc.fontSize(24).fillColor('#2d3748').text('Compliance Analysis Report', 50, 160, { align: 'center' });
+        doc.fontSize(18).fillColor('#4a5568').text('eKYC System Security Assessment', 50, 220, { align: 'center' });
 
-        doc.fontSize(24)
-            .fillColor('#2d3748')
-            .text('Compliance Analysis Report', 50, 160, { align: 'center' });
+        // ✅ Logo 置中
+        const logoWidth = 120;  // Logo 寬度
+        const logoHeight = 120; // Logo 高度
+        const pageWidth = 595;  // A4 頁面寬度 (pt)
+        const logoX = (pageWidth - logoWidth) / 2;  // 計算置中 X 座標
+        const logoY = 270;  // Y 座標
 
-        // 副標題
-        doc.fontSize(18)
-            .fillColor('#4a5568')
-            .text('eKYC System Security Assessment', 50, 220, { align: 'center' });
+        doc.image('assets/logo/IMG_0372.PNG', logoX, logoY, {
+            width: logoWidth,
+            height: logoHeight
+        });
 
-        // 徽章/圖標區域
-        doc.fontSize(72)
-            .fillColor('#3182ce')
-            .text('🛡️', 50, 280, { align: 'center' });
-
-        // 統計資訊框
-        const y = 380;
+        // 風險統計條
+        const y = 410;  // 往下移一點避免與 Logo 重疊
         const highRisk = findings.filter(f => f.metadata?.severity === 'high').length;
         const mediumRisk = findings.filter(f => f.metadata?.severity === 'medium').length;
         const lowRisk = findings.filter(f => f.metadata?.severity === 'low').length;
 
-        // 風險統計卡片
         doc.rect(100, y, 120, 80).fillAndStroke('#fee2e2', '#dc2626');
         doc.fillColor('#dc2626').fontSize(24).text(highRisk.toString(), 150, y + 15, { align: 'center', width: 20 });
         doc.fillColor('#7f1d1d').fontSize(12).text('High Risk', 100, y + 50, { align: 'center', width: 120 });
@@ -1166,184 +966,172 @@ ${recommendations}
         doc.fillColor('#10b981').fontSize(24).text(lowRisk.toString(), 430, y + 15, { align: 'center', width: 20 });
         doc.fillColor('#065f46').fontSize(12).text('Low Risk', 380, y + 50, { align: 'center', width: 120 });
 
-        // 機構資訊
-        doc.fillColor('#4a5568')
-            .fontSize(16)
-            .text('National Taichung University of Science and Technology', 50, 520, { align: 'center' })
-            .text('QinGuoQinCheng Team', 50, 545, { align: 'center' });
+        doc.fillColor('#4a5568').fontSize(16)
+            .text('National Taichung University of Science and Technology', 50, 540, { align: 'center' })
+            .text('QinGuoQinCheng Team', 50, 565, { align: 'center' });
 
-        // 日期和版本
-        doc.fillColor('#718096')
-            .fontSize(14)
-            .text(`Generated: ${new Date().toLocaleDateString('en-US', {
+        doc.fillColor('#718096').fontSize(14).text(
+            `Generated: ${new Date().toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
-            })}`, 50, 600, { align: 'center' })
-            .text('Version: 1.0.0', 50, 620, { align: 'center' });
+            })}`,
+            50, 620, { align: 'center' }
+        ).text('Version: 1.0.0', 50, 640, { align: 'center' });
 
-        // 框架資訊
-        if (options.complianceFrameworks && options.complianceFrameworks.length > 0) {
-            doc.text(`Frameworks: ${options.complianceFrameworks.join(', ')}`, 50, 640, { align: 'center' });
+        if (options.complianceFrameworks?.length > 0) {
+            doc.text(`Frameworks: ${options.complianceFrameworks.join(', ')}`, 50, 660, { align: 'center' });
         }
 
-        // 分隔線
-        doc.moveTo(100, 680)
-            .lineTo(500, 680)
-            .strokeColor('#e2e8f0')
-            .stroke();
+        doc.moveTo(100, 700).lineTo(500, 700).strokeColor('#e2e8f0').stroke();
 
-        // 機密標示
-        doc.fillColor('#e53e3e')
-            .fontSize(12)
-            .text('CONFIDENTIAL - Authorized Personnel Only', 50, 720, { align: 'center' })
-            .text('This report contains sensitive security information', 50, 740, { align: 'center' });
+        doc.fillColor('#e53e3e').fontSize(12)
+            .text('CONFIDENTIAL - Authorized Personnel Only', 50, 740, { align: 'center' })
+            .text('This report contains sensitive security information', 50, 760, { align: 'center' });
     }
 
-    addExecutiveSummary(doc, findings) {
+
+
+    // ✅ 修正 addExecutiveSummary
+    addExecutiveSummary(doc, findings, pentestResults) {
         doc.fontSize(22)
             .fillColor('#1a365d')
             .text('Executive Summary', 50, 50);
 
-        // 分隔線
         doc.moveTo(50, 80)
             .lineTo(550, 80)
             .strokeColor('#3182ce')
             .lineWidth(2)
             .stroke();
 
-        let y = 100;
+        // ✅ 使用 doc.y 而非固定值
+        doc.moveDown(2); // 移動2行
 
-        doc.fontSize(12)
-            .fillColor('#2d3748')
-            .text('This comprehensive security assessment evaluates the eKYC system', 50, y)
-            .text('compliance across technical, legal, and security dimensions.', 50, y + 20)
-            .text('The analysis covers web application security, system architecture,', 50, y + 40)
-            .text('and regulatory compliance requirements.', 50, y + 60);
+        // 從 Grok 報告提取執行摘要內容
+        const grokContent = pentestResults?.grokReports?.pentestReport?.content || '';
+        const executiveSummary = this.extractExecutiveSummary(grokContent);
 
-        y += 100;
+        // 顯示 Grok 生成的執行摘要
+        if (executiveSummary && executiveSummary.length > 0) {
+            doc.fontSize(12)
+                .fillColor('#2d3748')
+                .text(executiveSummary, {
+                    width: 500,
+                    align: 'justify'
+                });
+            doc.moveDown(2); // ✅ 自動調整位置
+        } else {
+            doc.fontSize(12)
+                .fillColor('#2d3748')
+                .text('This comprehensive security assessment evaluates the eKYC system')
+                .text('compliance across technical, legal, and security dimensions.');
+            doc.moveDown(1);
+        }
 
-        // 關鍵發現
-        doc.fontSize(16)
+        // 統計資料
+        const ex = pentestResults?.executiveSummary || {};
+        doc.fontSize(14)
             .fillColor('#2b6cb0')
-            .text('Key Findings:', 50, y);
+            .text('Test Statistics:');
 
-        y += 30;
+        doc.moveDown(0.5);
 
-        const keyFindings = [
-            `Total of ${findings.length} security issues identified requiring attention`,
-            'High-risk items need immediate remediation to prevent data breaches',
-            'Personal Data Protection Act compliance requires strengthening',
-            'ISO 27001 control implementation shows significant gaps',
-            'OWASP Top 10 security risks need comprehensive mitigation'
-        ];
-
-        doc.fontSize(11).fillColor('#2d3748');
-        keyFindings.forEach(finding => {
-            doc.text(`• ${finding}`, 70, y);
-            y += 22;
-        });
-
-        y += 30;
-
-        // 風險評級
-        const highRisk = findings.filter(f => f.metadata?.severity === 'high').length;
-        const overallRisk = highRisk > 0 ? 'HIGH RISK' : 'MEDIUM RISK';
-        const riskColor = highRisk > 0 ? '#dc2626' : '#f59e0b';
-
-        doc.fontSize(16)
-            .fillColor('#2d3748')
-            .text('Overall Risk Assessment: ', 50, y, { continued: true })
-            .fillColor(riskColor)
-            .text(overallRisk);
-
-        // 立即行動建議框
-        y += 50;
-        doc.rect(50, y, 500, 120)
-            .fillAndStroke('#fef5e7', '#f6ad55');
-
-        doc.fillColor('#c05621')
-            .fontSize(14)
-            .text('Immediate Action Required:', 60, y + 15);
-
-        doc.fillColor('#7b341e')
-            .fontSize(11)
-            .text('1. Address all HIGH RISK vulnerabilities within 48 hours', 70, y + 40)
-            .text('2. Implement emergency access controls and monitoring', 70, y + 60)
-            .text('3. Prepare incident response procedures and notification protocols', 70, y + 80)
-            .text('4. Schedule security team meeting to review findings', 70, y + 100);
+        doc.fontSize(11).fillColor('#2d3748')
+            .text(`• Total Vectors: ${ex.totalVectors || 0}`)
+            .text(`• Successful Attacks: ${ex.successfulAttacks || 0}`)
+            .text(`• Failed Attacks: ${ex.failedAttacks || 0}`)
+            .text(`• Success Rate: ${ex.overallSuccessRate || '0%'}`)
+            .text(`• Risk Level: ${ex.riskLevel || 'UNKNOWN'}`);
     }
 
-    addTechnicalAnalysis(doc, findings) {
+    // ✅ 修正 addTechnicalAnalysis
+    addTechnicalAnalysis(doc, findings, pentestResults) {
         doc.fontSize(22)
             .fillColor('#1a365d')
-            .text('Technical Analysis', 50, 50);
+            .text('Technical Analysis & Recommendations', 50, 50);
 
-        doc.moveTo(50, 80).lineTo(550, 80).strokeColor('#3182ce').lineWidth(2).stroke();
+        doc.moveTo(50, 80)
+            .lineTo(550, 80)
+            .strokeColor('#3182ce')
+            .lineWidth(2)
+            .stroke();
 
-        let y = 100;
+        doc.moveDown(2);
 
-        // Web 應用程式安全
+        // 從 Grok 報告提取技術分析內容
+        const grokPentest = pentestResults?.grokReports?.pentestReport?.content || '';
+        const grokAttack = pentestResults?.grokReports?.attackRecommendations?.content || '';
+
+        const technicalContent = this.extractTechnicalAnalysis(grokPentest);
+        const attackRecommendations = this.extractAttackRecommendations(grokAttack);
+
+        // Section 1: Grok 技術分析
         doc.fontSize(16)
             .fillColor('#2b6cb0')
-            .text('Web Application Security', 50, y);
+            .text('Grok AI Security Analysis');
 
-        y += 30;
+        doc.moveDown(1);
 
-        const webIssues = [
-            'SQL injection vulnerabilities in user input fields',
-            'Cross-Site Scripting (XSS) protection insufficient',
-            'Input validation and output encoding require enhancement',
-            'Session management mechanisms need security review',
-            'Authentication bypass vulnerabilities identified'
-        ];
+        if (technicalContent && technicalContent.length > 20) {
+            doc.fontSize(10)
+                .fillColor('#2d3748')
+                .text(technicalContent, {
+                    width: 480,
+                    align: 'justify'
+                });
+            doc.moveDown(2);
+        }
 
-        doc.fontSize(11).fillColor('#2d3748');
-        webIssues.forEach(issue => {
-            doc.text(`• ${issue}`, 70, y);
-            y += 18;
-        });
+        // ✅ 檢查是否需要換頁
+        if (doc.y > 650) {
+            doc.addPage();
+        }
 
-        y += 30;
-
-        // 系統架構安全
+        // Section 2: Grok 攻擊建議
         doc.fontSize(16)
             .fillColor('#2b6cb0')
-            .text('System Architecture Security', 50, y);
+            .text('Attack Vector Recommendations');
 
-        y += 30;
+        doc.moveDown(1);
 
-        const systemIssues = [
-            'Access control mechanisms require immediate review',
-            'Logging and monitoring capabilities need enhancement',
-            'Backup and recovery procedures are incomplete',
-            'Network segmentation and isolation insufficient',
-            'Encryption standards below industry requirements'
-        ];
+        if (attackRecommendations && attackRecommendations.length > 20) {
+            doc.fontSize(10)
+                .fillColor('#2d3748')
+                .text(attackRecommendations, {
+                    width: 480,
+                    align: 'justify'
+                });
+        }
+    }
 
-        doc.fontSize(11).fillColor('#2d3748');
-        systemIssues.forEach(issue => {
-            doc.text(`• ${issue}`, 70, y);
-            y += 18;
-        });
 
-        y += 40;
+    // ✅ 新增輔助方法：從 Grok Markdown 提取純文字
+    extractExecutiveSummary(grokContent) {
+        if (!grokContent) return '';
 
-        // 合規差距分析
-        doc.rect(50, y, 500, 100)
-            .fillAndStroke('#e6fffa', '#38b2ac');
+        // 簡單提取前500字作為摘要
+        const cleanText = this.stripEmoji(this.mdToPlain(grokContent));
+        const lines = cleanText.split('\n').filter(line => line.trim().length > 0);
 
-        doc.fillColor('#234e52')
-            .fontSize(14)
-            .text('Compliance Gap Analysis:', 60, y + 15);
+        // 取前10行或前500字
+        let summary = lines.slice(0, 10).join('\n');
+        if (summary.length > 500) {
+            summary = summary.substring(0, 500) + '...';
+        }
 
-        doc.fillColor('#285e61')
-            .fontSize(11)
-            .text('• ISO 27001: 23 of 114 controls require immediate attention', 70, y + 40)
-            .text('• OWASP Top 10: 7 of 10 categories show vulnerabilities', 70, y + 60)
-            .text('• GDPR/PDPA: Data processing mechanisms need legal review', 70, y + 80);
+        return summary;
+    }
+
+    extractTechnicalAnalysis(grokContent) {
+        if (!grokContent) return '';
+        return this.stripEmoji(this.mdToPlain(grokContent));
+    }
+
+    extractAttackRecommendations(grokContent) {
+        if (!grokContent) return '';
+        return this.stripEmoji(this.mdToPlain(grokContent));
     }
 
     addRecommendations(doc, findings) {
@@ -1361,7 +1149,7 @@ ${recommendations}
 
         doc.fillColor('#742a2a')
             .fontSize(16)
-            .text('🚨 CRITICAL (1-7 days)', 60, y + 15);
+            .text('CRITICAL (1-7 days)', 60, y + 15);
 
         doc.fillColor('#822727')
             .fontSize(11)
@@ -1379,7 +1167,7 @@ ${recommendations}
 
         doc.fillColor('#c05621')
             .fontSize(16)
-            .text('⚡ HIGH PRIORITY (1-30 days)', 60, y + 15);
+            .text('HIGH PRIORITY (1-30 days)', 60, y + 15);
 
         doc.fillColor('#7b341e')
             .fontSize(11)
@@ -1396,7 +1184,7 @@ ${recommendations}
 
         doc.fillColor('#276749')
             .fontSize(16)
-            .text('📋 MEDIUM TERM (1-3 months)', 60, y + 15);
+            .text('MEDIUM TERM (1-3 months)', 60, y + 15);
 
         doc.fillColor('#2f855a')
             .fontSize(11)
