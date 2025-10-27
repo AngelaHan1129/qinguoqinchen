@@ -8,6 +8,16 @@ import math
 from datetime import datetime
 import asyncio
 
+import os
+from dotenv import load_dotenv
+
+# 載入 .env
+load_dotenv()
+
+# 讀取環境變數
+HOST = os.getenv("VECTOR_API_HOST", "0.0.0.0")
+PORT = int(os.getenv("VECTOR_API_PORT", 8099))
+LOG_LEVEL = os.getenv("VECTOR_API_LOG_LEVEL", "info")
 # 建立 FastAPI 應用
 app = FastAPI(
     title="侵國侵城法規 RAG 向量服務",
@@ -435,14 +445,14 @@ if __name__ == "__main__":
     
     print("🚀 啟動侵國侵城法規 RAG 向量服務...")
     print("🏛️ 專為台灣資安法規遵循設計")
-    print("📡 服務地址: http://0.0.0.0:8000")
-    print("📚 API 文檔: http://localhost:8000/docs")
-    print("🧪 測試端點: http://localhost:8000/test")
-    
+    print(f"📡 服務地址: http://{HOST}:{PORT}")
+    print(f"📚 API 文檔: http://{HOST}:{PORT}/docs")
+    print(f"🧪 測試端點: http://{HOST}:{PORT}/test")
+
     uvicorn.run(
-        app, 
-        host="0.0.0.0", 
-        port=8000, 
+        app,
+        host=HOST,
+        port=PORT,
         reload=False,
-        log_level="info"
+        log_level=LOG_LEVEL
     )
