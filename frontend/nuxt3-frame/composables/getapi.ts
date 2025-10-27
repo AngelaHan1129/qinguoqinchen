@@ -1,5 +1,5 @@
 // composables/getapi.ts
-
+import { useApiFetch } from './useApiFetch'
 export type AttackModVector = {
     id: string
     model: string
@@ -92,7 +92,8 @@ export type RAGAskResponse = {
  */
 export async function getAttackMod(): Promise<{ vectors: AttackModVector[] }> {
     try {
-        const response = await fetch('/api/ai-attack/vectors')
+        const response = await useApiFetch('/ai-attack/vectors')
+
         if (!response.ok) throw new Error(`Fetch failed: ${response.status}`)
 
         const json = await response.json()
