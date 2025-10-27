@@ -100,7 +100,7 @@ class SecurityMiddleware {
         return (req, res, next) => {
             const allowedOrigins = [
                 'http://localhost:3000',
-                'http://localhost:7939',
+                process.env.API_BASE_URL || 'http://localhost:7939',
                 'https://qinguoqinchen.ai',
                 process.env.FRONTEND_URL
             ].filter(Boolean);

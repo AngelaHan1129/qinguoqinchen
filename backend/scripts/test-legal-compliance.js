@@ -2,7 +2,7 @@
 const axios = require('axios');
 
 async function testLegalCompliance() {
-    const baseURL = 'http://localhost:7939';
+    const baseURL = process.env.API_BASE_URL || 'http://localhost:7939';
 
     try {
         console.log('🧪 測試資安法規遵循系統...');
