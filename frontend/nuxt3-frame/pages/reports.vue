@@ -39,10 +39,10 @@
       </div>
 
       <!-- 風險趨勢圖表 -->
-      <div class="chart-container">
+      <!-- <div class="chart-container">
         <h3 class="chart-title">🔥 安全風險趨勢分析</h3>
         <div id="riskTrendChart" class="chart-element"></div>
-      </div>
+      </div> -->
 
       <!-- 報告列表 -->
       <div class="reports-table">
@@ -399,7 +399,7 @@ function navigateToPentest() {
 }
 
 function navigateToDashboard() {
-  router.push('/dashboard')
+  router.push('/')
 }
 </script>
 
