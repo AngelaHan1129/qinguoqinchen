@@ -12,7 +12,7 @@
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://docker.com/)
 [![RAG](https://img.shields.io/badge/RAG-enabled-orange.svg)](#)
 
-**🎯 專為 eKYC (電子身份驗證) 安全測試設計的企業級 AI 紅隊滲透測試系統**  
+** eKYC (電子身份驗證) 安全測試設計的企業級 AI 紅隊滲透測試系統**  
 > **整合 RAG 檢索增強生成技術 + 多模態 AI 攻擊引擎 + 實時威脅分析**
 
 ## 📋 目錄
